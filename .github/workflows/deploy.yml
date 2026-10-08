@@ -2,6 +2,13 @@ name: Deploy storefront
 on:
   push:
     branches: ["main"]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - "wrangler.jsonc"
   workflow_dispatch:
 jobs:
   deploy:

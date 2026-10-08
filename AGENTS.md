@@ -1,31 +1,35 @@
-# Private operational provisioning template
+# Evensensolution AS / ModChronos
 
-Canonical code lives in public beint-no/reai-site-examples. Refresh this template
-from the storefront exporter; do not develop a second design source here.
-Keep the GitHub template private, the provisioning App's repository access and
-the existing runtime binding names intact. Never commit secrets or client data.
+Private client storefront, repository `beint-no/evensensolution-as-modchronos`.
+ReAI tenant: 2254 (`evensensolution-as`). Site: `9bd71d09-ac8b-4b87-b22a-7719893327d5`.
+The operator checkout lives under `~/r/customer-sites/sites/evensensolution-as-modchronos`;
+read the hub's shared AGENTS.md before working in a dedicated worktree.
 
-Clients receive independently generated private repositories. The private
-customer-sites hub is the only overall client submodule registry. This template
-is infrastructure and does not aggregate client source. Use dedicated worktrees,
-PRs and squash merges; run npm run check and a Wrangler dry run after refreshing.
+## Ownership and launch status
 
-## Refresh the operational copy
+This is a Site API storefront: catalog, prices, variants, availability and checkout
+belong in ReAI. Design, assets and editorial content belong in this repository.
+The Worker uses REAI_API_BASE_URL and a server-side REAI_SITE_CREDENTIAL; never
+expose the credential in browser code or commit real credentials.
 
-Run `npm run export -- storefront /absolute/new/export-directory` in the
-public source repo. Copy that output into a dedicated worktree of this repo,
-regenerate package-lock.json with npm install, run npm run check and a Wrangler
-dry run, review the diff and squash merge. Keep the template private.
+The branded storefront is a workers.dev preview. The original merchant site is
+modchronos.eu. Source snapshots, design decisions and outstanding launch review
+are documented in DESIGN.md. Review preserved merchant claims and Shopify-specific
+policy references before a sales launch. Do not change payment settings or publish
+new promotional promises as part of a design update.
 
-ReAI generates private client repositories from this template, then installs
-the client Worker configuration and deployment workflow. The provisioning
-GitHub App must have access to this private template. Template updates do not
-overwrite existing client repositories.
+Keep the existing Worker `reai-store-9bd71d09ac8b4b87b22a7719893327d5`, its routes
+and credentials intact. The GitHub rename changes source organization only.
+This customized repository is the source of truth; starter updates must be
+reviewed and must never overwrite the client's implementation.
 
-Runtime bindings are REAI_API_BASE_URL and server-side REAI_SITE_CREDENTIAL.
-Never commit real credentials. The test Worker name is for local development;
-ReAI supplies the actual deployment identity for a generated client store.
+## Editing and publishing
 
-Each generated repository is independently usable. Customize src/store-content.js
-and public/styles.css, review merchant details/policies, run npm run check, and
-use the generated repository's approved publishing workflow.
+Keep the primary checkout on main. Use a dedicated worktree under ~/.r-worktrees,
+open a PR, and squash merge. Run `npm ci`, `npm run check`, and
+`npx wrangler deploy --dry-run`; inspect relevant desktop/mobile views for design changes.
+Avoid creating production orders or payments for verification.
+
+The Deploy storefront workflow publishes runtime changes merged to main and
+supports manual dispatch. Documentation-only commits do not deploy. With authorized
+Cloudflare credentials, `npm run deploy` is the local fallback when Actions is unavailable.
