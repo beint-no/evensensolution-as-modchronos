@@ -1,4 +1,7 @@
 import { ReaiSiteClient } from "../packages/reai-site-client/client.mjs";
+import { brandContent } from "./brand-content.js";
+import { sourcePages } from "./source-pages.js";
+import { aboutHtml } from "./about-content.js";
 import { storeContent } from "./store-content.js";
 import { language, ui } from "./ui-copy.js";
 
@@ -79,7 +82,7 @@ function card(product, store) {
 
 function page(site, store, title, body, status = 200) {
   const t = ui(store?.locale);
-  const content = storeContent[language(store?.locale)];
+  const content = brandContent;
   const name = site?.name || "Storefront";
   const legalName = storeContent.legalName || name;
   const footerCollections = (store?.collections || []).slice(0, 3).map((collection) =>
@@ -94,23 +97,23 @@ function page(site, store, title, body, status = 200) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="${t.meta} ${escapeHtml(name)}.">
-  <meta name="theme-color" content="#21443b">
+  <meta name="theme-color" content="#111111">
   <title>${escapeHtml(title)} · ${escapeHtml(name)}</title>
-  <link rel="icon" href="/storefront-mark.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/modchronos-logo.jpg" type="image/jpeg">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <a class="skip-link" href="#main">${t.skip}</a>
   <div class="announcement">${escapeHtml(content.tagline)}</div>
   <header class="site-header shell">
-    <a class="wordmark" href="/"><img src="/storefront-mark.svg" alt="" width="38" height="38">${escapeHtml(name)}</a>
+    <a class="wordmark" href="/"><img src="/assets/modchronos-logo.jpg" alt="ModChronos" width="220" height="48"></a>
     <nav aria-label="${t.shop}"><a href="/collections/all">${t.shop}</a><a href="/collections">${t.collections}</a><a href="/pages/about">${t.about}</a><a href="/pages/contact">${t.contact}</a><a class="cart-link" href="/cart">${t.cart} <span data-cart-count>0</span></a></nav>
   </header>
   <main id="main">${body}</main>
   <footer class="site-footer"><div class="shell footer-grid">
-    <div class="footer-brand"><a class="wordmark" href="/"><img src="/storefront-mark.svg" alt="" width="38" height="38">${escapeHtml(name)}</a><p>${escapeHtml(content.aboutIntro)}</p></div>
+    <div class="footer-brand"><a class="wordmark" href="/"><img src="/assets/modchronos-logo.jpg" alt="ModChronos" width="220" height="48"></a><p>${escapeHtml(content.aboutIntro)}</p></div>
     <div><h2>${t.shop}</h2><a href="/collections/all">${t.allProducts}</a><a href="/collections">${t.collections}</a>${footerCollections}<a href="/cart">${t.yourCart}</a></div>
-    <div><h2>${t.help}</h2><a href="/pages/contact">${t.contact}</a><a href="/pages/shipping">${t.shipping}</a><a href="/pages/faq">${t.faq}</a><a href="/policies/returns">${t.returns}</a></div>
+    <div><h2>${t.help}</h2><a href="/pages/contact">${t.contact}</a><a href="/pages/shipping">${t.shipping}</a><a href="/policies/returns">${t.returns}</a></div>
     <div><h2>${t.about}</h2><a href="/pages/about">${t.ourStory}</a>${contact}<a href="/policies/privacy">${t.privacy}</a><a href="/policies/terms">${t.terms}</a></div>
   </div><div class="shell footer-bottom"><span>© ${new Date().getUTCFullYear()} ${escapeHtml(legalName)}${storeContent.organizationNumber ? ` · ${escapeHtml(storeContent.organizationNumber)}` : ""}</span><span>${t.poweredBy} <a href="https://reai.no" rel="external">ReAI</a></span></div></footer>
   <script src="/store.js" defer></script>
@@ -120,7 +123,7 @@ function page(site, store, title, body, status = 200) {
 
 function home(site, store) {
   const t = ui(store.locale);
-  const content = storeContent[language(store.locale)];
+  const content = brandContent;
   const collectionLinks = (store.collections || []).slice(0, 3).map((collection, index) => collectionTile(collection, index, store)).join("");
   const products = (store.products || []).slice(0, 8);
   return page(site, store, t.shop, `
@@ -130,14 +133,14 @@ function home(site, store) {
         <p>${escapeHtml(content.heroDescription)}</p>
         <a class="button" href="/collections/all">${t.discoverProducts} <span aria-hidden="true">↗</span></a>
       </div>
-      <div class="hero-art"><img src="/storefront-hero.avif" alt="" width="1536" height="1024" fetchpriority="high"></div>
+      <div class="hero-art"><img src="/storefront-hero.avif" alt="" width="1600" height="1600" fetchpriority="high"></div>
     </section>
-    <section class="shell value-strip" aria-label="${t.shop}"><div><strong>${t.curatedSelection}</strong><span>${t.latestArrivals}</span></div><div><strong>${t.clearCheckout}</strong><span>${t.reviewOrder}</span></div><div><strong>${t.hereHelp}</strong><a href="/pages/contact">${t.getInTouch} <span aria-hidden="true">↗</span></a></div></section>
+    <section class="shell value-strip" aria-label="${t.shop}">${content.features.map(([heading, text]) => `<div><strong>${escapeHtml(heading)}</strong><span>${escapeHtml(text)}</span></div>`).join("")}</section>
     ${collectionLinks ? `<section class="shell collection-section"><div class="section-heading"><span class="eyebrow">${t.collectionEyebrow}</span><h2>${t.exploreCollections}</h2><a class="text-link" href="/collections">${t.collections} ↗</a></div><div class="collection-grid">${collectionLinks}</div></section>` : ""}
     <section class="shell product-section" id="products"><div class="section-heading"><span class="eyebrow">${t.productsEyebrow}</span><h2>${t.ourProducts}</h2><a class="text-link" href="/collections/all">${t.allProducts} ↗</a></div>
       ${products.length ? `<div class="product-grid">${products.map((product) => card(product, store)).join("")}</div>` : `<p class="empty-state">${t.emptyProducts}</p>`}
     </section>
-    <section class="shell story-panel"><div><span class="eyebrow">${t.meetStore}</span><h2>${t.storyHeading}</h2></div><div><p>${escapeHtml(content.aboutIntro)}</p><a class="text-link" href="/pages/about">${t.knowUs} <span aria-hidden="true">↗</span></a></div></section>`);
+    <section class="shell story-panel"><div><span class="eyebrow">ModChronos</span><h2>${escapeHtml(content.storyTitle)}</h2></div><div><p>${escapeHtml(content.heroDescription)}</p><a class="text-link" href="/pages/about">${t.knowUs} <span aria-hidden="true">↗</span></a></div></section>`);
 }
 
 function collectionTile(collection, index, store) {
@@ -192,10 +195,10 @@ function productPage(site, store, product) {
     <div class="product-detail"><div class="detail-image">${picture(product)}</div>
       <div class="detail-copy"><span class="eyebrow">${escapeHtml(product.brand || site.name)}</span>
         <h1>${escapeHtml(product.title)}</h1><p class="detail-price">${escapeHtml(productPrice(product, store))}</p>
-        ${descriptionHtml(product)}
         ${options ? `<form data-add-to-cart><label for="variant">${t.options}</label><select id="variant" name="variantId" required${soldOut ? " disabled" : ""}>${options}</select>
           <label for="quantity">${t.quantity}</label><input id="quantity" name="quantity" type="number" min="1" max="20" value="1" required>
           <button class="button" type="submit"${soldOut ? " disabled" : ""}>${soldOut ? t.outOfStock : t.addToCart}</button><p data-add-message role="status"></p></form>` : ""}
+        <div class="product-description">${descriptionHtml(product)}</div>
       </div>
     </div>
   </section>`);
@@ -220,6 +223,9 @@ function completePage(site, store) {
 
 function informationPage(site, store, slug) {
   const t = ui(store.locale);
+  if (slug === "/pages/about") return page(site, store, "About Us", `<section class="shell editorial-page"><a class="breadcrumb" href="/">${t.backStore}</a><h1>About Us</h1><div class="editorial-body">${aboutHtml}</div></section>`);
+  const original = sourcePages[slug];
+  if (original) return page(site, store, original.title, `<section class="shell editorial-page"><a class="breadcrumb" href="/">${t.backStore}</a><h1>${escapeHtml(original.title)}</h1><div class="editorial-body">${original.html}</div></section>`);
   const key = {
     "/pages/about": "about", "/pages/contact": "contact", "/pages/shipping": "shipping",
     "/pages/faq": "faq", "/policies/returns": "returns", "/policies/privacy": "privacy",
