@@ -33,3 +33,14 @@ Avoid creating production orders or payments for verification.
 The Deploy storefront workflow publishes runtime changes merged to main and
 supports manual dispatch. Documentation-only commits do not deploy. With authorized
 Cloudflare credentials, `npm run deploy` is the local fallback when Actions is unavailable.
+
+## Automatic PR previews
+
+Open same-repository PRs get a stable Cloudflare Preview URL, refreshed on each push
+and removed on close. `.github/workflows/preview.yml` builds without credentials,
+then deploys with reviewed default-branch tooling in `.github/preview/preview.mjs`.
+The preview is noindex and read-only: orders, payments and form submissions are disabled.
+GitHub secrets: CLOUDFLARE_PREVIEW_API_TOKEN and CLOUDFLARE_PREVIEW_ACCOUNT_ID;
+commerce sites also need REAI_PREVIEW_CREDENTIAL with only Site, catalog and availability reads.
+Manually dispatch PR previews with a PR number to backfill an already-open PR.
+Production publishing and domain approval follow the existing site instructions.
