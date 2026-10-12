@@ -1,26 +1,51 @@
-name: Deploy storefront
+name: Build storefront
 on:
   push:
     branches: ["main"]
-    paths:
-      - "src/**"
-      - "public/**"
-      - "packages/**"
-      - "package.json"
-      - "package-lock.json"
-      - "wrangler.jsonc"
   workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: build-storefront
+  cancel-in-progress: true
 jobs:
-  deploy:
+  build:
     runs-on: "ubuntu-latest"
+    timeout-minutes: 10
     steps:
-      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
-      - uses: "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020" # v7.0.0
+      - uses: "actions/checkout@v7"
+        with:
+          persist-credentials: false
+      - uses: "actions/setup-node@v7"
         with:
           node-version: "22"
-          cache: npm
       - run: npm ci
-      - run: npx wrangler deploy
+      - name: Build Worker and assets
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ASSETS_DIRECTORY: "./public"
+        run: |
+          npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/storefront/worker"
+          cp -R "$ASSETS_DIRECTORY" "$RUNNER_TEMP/storefront/assets"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: storefront
+          path: ${{ runner.temp }}/storefront
+          if-no-files-found: error
+          retention-days: 7
+      - name: Request deployment
+        env:
+          DEPLOYMENT_URL: "https://app.reai.no/online-store/deployment/request"
+        run: |
+          node --input-type=module <<'JS'
+          const tokenResponse = await fetch(process.env.ACTIONS_ID_TOKEN_REQUEST_URL + '&audience=reai-storefront', {
+            headers: { Authorization: 'Bearer ' + process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }
+          });
+          if (!tokenResponse.ok) throw new Error('GitHub identity token request failed');
+          const { value } = await tokenResponse.json();
+          console.log('::add-mask::' + value);
+          const response = await fetch(process.env.DEPLOYMENT_URL, {
+            method: 'POST', headers: { Authorization: 'Bearer ' + value }
+          });
+          if (!response.ok) throw new Error('Deployment request failed: ' + response.status);
+          JS
