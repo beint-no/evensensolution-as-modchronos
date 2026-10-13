@@ -35,7 +35,7 @@ jobs:
           retention-days: 7
       - name: Request deployment
         env:
-          DEPLOYMENT_URL: "https://app.reai.no/online-store/deployment/request"
+          DEPLOYMENT_URL: "https://tunnel-khan.resp.no/online-store/deployment/request"
         run: |
           node --input-type=module <<'JS'
           const tokenResponse = await fetch(process.env.ACTIONS_ID_TOKEN_REQUEST_URL + '&audience=reai-storefront', {
