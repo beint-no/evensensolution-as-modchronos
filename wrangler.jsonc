@@ -13,7 +13,8 @@
   "vars": {
     "REAI_API_BASE_URL": "https://app.reai.no",
     "CANONICAL_HOSTNAME": "modchronos.respiro.workers.dev",
-    "REAI_REVIEW_ONLY": "true"
+    "REAI_REVIEW_ONLY": "true",
+    "WATCH_CASE_PROMOTION": "true"
   },
   "account_id": "d7c5a90b75a693cc738d69f92808f451"
 }

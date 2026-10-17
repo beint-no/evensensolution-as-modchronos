@@ -4,6 +4,7 @@ import { sourcePages } from "./source-pages.js";
 import { aboutHtml } from "./about-content.js";
 import { storeContent } from "./store-content.js";
 import { language, ui } from "./ui-copy.js";
+import { withWatchCase } from "../public/cart-rules.js";
 
 const HTML_HEADERS = {
   "content-type": "text/html; charset=utf-8",
@@ -102,7 +103,7 @@ function page(site, store, title, body, status = 200) {
   <meta name="robots" content="noindex, nofollow">
   <title>${escapeHtml(title)} · ${escapeHtml(name)}</title>
   <link rel="icon" href="/assets/modchronos-logo.jpg" type="image/jpeg">
-  <link rel="stylesheet" href="/styles.css?v=20261017">
+  <link rel="stylesheet" href="/styles.css?v=20261017-case">
 </head>
 <body>
   <a class="skip-link" href="#main">${t.skip}</a>
@@ -120,7 +121,13 @@ function page(site, store, title, body, status = 200) {
     <div><h2>${t.help}</h2><a href="/pages/contact">${t.contact}</a><a href="/pages/shipping">${t.shipping}</a><a href="/policies/returns">${t.returns}</a></div>
     <div><h2>${t.about}</h2><a href="/pages/about">${t.ourStory}</a>${contact}<a href="/policies/privacy">${t.privacy}</a><a href="/policies/terms">${t.terms}</a></div>
   </div><div class="shell footer-bottom"><span>© ${new Date().getUTCFullYear()} ${escapeHtml(legalName)}${storeContent.organizationNumber ? ` · ${escapeHtml(storeContent.organizationNumber)}` : ""}</span><span>${t.poweredBy} <a href="https://reai.no" rel="external">ReAI</a></span></div></footer>
-  <script src="/store.js?v=20261017" defer></script>
+  <dialog class="cart-drawer" data-cart-drawer aria-labelledby="cart-drawer-title">
+    <header><h2 id="cart-drawer-title">${t.yourCart}</h2><button type="button" data-close-cart>${t.close}</button></header>
+    <div data-cart-items><p>${t.loadingCart}</p></div><p data-cart-total class="cart-total"></p>
+    <a class="button" href="/cart">${t.viewCart}</a>
+    <p class="cart-note">${store?.reviewOnly ? t.previewCartNote : t.cartNote}</p>
+  </dialog>
+  <script src="/store.js?v=20261017-case" type="module"></script>
 </body>
 </html>`, { status, headers: { ...HTML_HEADERS, "x-robots-tag": "noindex, nofollow" } });
 }
@@ -303,7 +310,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "POST") return new Response("Method not allowed", { status: 405 });
-    if (url.pathname.startsWith("/assets/") || ["/styles.css", "/store.js", "/storefront-mark.svg", "/storefront-hero.avif"].includes(url.pathname)) return env.ASSETS.fetch(request);
+    if (url.pathname.startsWith("/assets/") || ["/styles.css", "/store.js", "/cart-rules.js", "/storefront-mark.svg", "/storefront-hero.avif"].includes(url.pathname)) return env.ASSETS.fetch(request);
     if (env.CANONICAL_HOSTNAME && url.hostname.endsWith(".workers.dev") && url.hostname !== env.CANONICAL_HOSTNAME && ["GET", "HEAD"].includes(request.method)) {
       url.hostname = env.CANONICAL_HOSTNAME;
       return Response.redirect(url.href, 308);
@@ -331,8 +338,13 @@ export default {
       if (url.pathname === "/checkout/start") {
         if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
         const body = await boundedJson(request);
-        const lines = checkoutLines(body);
+        let lines = checkoutLines(body);
         if (!lines) return json({ error: "Invalid cart" }, 400);
+        if (env.WATCH_CASE_PROMOTION === "true") {
+          const catalog = await delivery(client.storefront(context));
+          lines = withWatchCase(lines, catalog);
+          if (!lines.length) return json({ error: ui(context.locale).emptyCart }, 400);
+        }
         try {
           const session = await delivery(client.createCheckoutSession(
             { lines, returnUrl: `${url.origin}/checkout/complete` }, context,

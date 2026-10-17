@@ -4,6 +4,7 @@ export function language(locale) {
 
 const copy = {
   nb: {
+    close: "Lukk", viewCart: "Se handlekurven", emptyCart: "Handlekurven er tom.",
     homeTitle: "Håndmonterte klokker", brandStrip: "JAPANSK URVERK · HÅNDMONTERT", watches: "Klokker", menu: "Meny", search: "Søk",
     heroTitle: "Bygget for<br>din stil.", heroDescription: "Håndmonterte klokker med japanske urverk. Finn uttrykket som passer deg.",
     exploreWatches: "Utforsk klokkene", heroAlt: "Racing Panda med hvit urskive og stållenkje, vist på håndleddet",
@@ -83,6 +84,7 @@ const copy = {
     unavailableText: "Vi kunne ikke laste inn produktene akkurat nå.",
   },
   en: {
+    close: "Close", viewCart: "View cart", emptyCart: "Your cart is empty.",
     homeTitle: "Hand-assembled watches", brandStrip: "JAPANESE MOVEMENTS · HAND ASSEMBLED", watches: "Watches", menu: "Menu", search: "Search",
     heroTitle: "Built for<br>your style.", heroDescription: "Hand-assembled watches with Japanese movements. Find the expression that feels like you.",
     exploreWatches: "Explore the watches", heroAlt: "White-dial Racing Panda chronograph with a steel bracelet, worn on a wrist",

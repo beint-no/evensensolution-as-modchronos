@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "wrangler dev",
-    "check": "node --check src/worker.js && node --check src/preview-alias.js && node --check public/store.js && node --test src/*.test.js",
+    "check": "node --check src/worker.js && node --check src/preview-alias.js && node --check public/store.js && node --check public/cart-rules.js && node --test src/*.test.js",
     "deploy": "npm run check && wrangler deploy --config wrangler.alias.jsonc && wrangler deploy",
     "deploy:local": "npm exec --yes --package=wrangler@4.149.0 -- node tools/worker.mjs deploy",
     "preview:deploy": "npm exec --yes --package=wrangler@4.149.0 -- node tools/worker.mjs preview",
