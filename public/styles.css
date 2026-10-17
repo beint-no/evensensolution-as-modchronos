@@ -255,3 +255,5 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .product-meta { display: flex; flex-direction: column; padding-bottom: .3rem; }
 .product-meta > span { margin-top: auto; }
 .product-discover { align-self: start; }
+
+.cart-offer { display:block; font-size:.9rem; color:#315b3e; margin-bottom:1rem; }

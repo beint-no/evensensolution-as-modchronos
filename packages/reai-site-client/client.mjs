@@ -12,11 +12,19 @@
 /** @typedef {import("./site-api.d.ts").components["schemas"]["SiteAvailabilitiesRes"]} SiteAvailabilities */
 /** @typedef {import("./site-api.d.ts").components["schemas"]["SiteCheckoutSessionReq"]} SiteCheckoutSessionRequest */
 /** @typedef {import("./site-api.d.ts").components["schemas"]["SiteCheckoutSessionRes"]} SiteCheckoutSession */
+/** @typedef {import("./site-api.d.ts").components["schemas"]["SiteNewsletterSubscriptionReq"]} SiteNewsletterSubscriptionRequest */
+/** @typedef {import("./site-api.d.ts").components["schemas"]["SiteNewsletterSubscriptionRes"]} SiteNewsletterSubscription */
 /** @typedef {{ market: string, locale: string }} DeliveryContext */
 /** @typedef {{ baseUrl?: string, token: string, fetch?: typeof globalThis.fetch }} SiteApiClientOptions */
 
 /** @type {keyof SiteApiPaths} */
 const SITE_PATH = "/site/v1/site";
+/** @type {keyof SiteApiPaths} */
+const ANALYTICS_PATH = "/site/v1/analytics/events";
+/** @type {keyof SiteApiPaths} */
+const NEWSLETTER_PATH = "/site/v1/newsletter/subscriptions";
+/** @type {keyof SiteApiPaths} */
+const STOCK_SUBSCRIPTION_PATH = "/site/v1/commerce/stock-subscriptions";
 /** @type {keyof SiteApiPaths} */
 const STOREFRONT_PATH = "/site/v1/commerce/storefront";
 /** @type {keyof SiteApiPaths} */
@@ -101,6 +109,27 @@ export class ReaiSiteClient {
     headers.set("Accept", "application/json");
     headers.set("Authorization", `Bearer ${this.#token}`);
     return this.#fetch(url.href, { ...init, headers });
+  }
+
+  /** @param {import("./site-api.d.ts").components["schemas"]["SiteAnalyticsBatchDto"]} body */
+  async analyticsEvents(body) {
+    return new SiteApiResponse(await this.#request(ANALYTICS_PATH, undefined, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+  }
+
+  /** @param {import("./site-api.d.ts").components["schemas"]["SiteStockSubscriptionReq"]} body
+   * @returns {Promise<SiteApiResponse<import("./site-api.d.ts").components["schemas"]["SiteStockSubscriptionRes"]>>} */
+  async subscribeStock(body) {
+    return new SiteApiResponse(await this.#request(STOCK_SUBSCRIPTION_PATH, undefined, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+  }
+
+  /**
+   * @param {SiteNewsletterSubscriptionRequest} body
+   * @returns {Promise<SiteApiResponse<SiteNewsletterSubscription>>}
+   */
+  async subscribeNewsletter(body) {
+    return new SiteApiResponse(await this.#request(NEWSLETTER_PATH, undefined, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }));
   }
 
   /** @returns {Promise<SiteApiResponse<SiteDelivery>>} */
@@ -191,11 +220,46 @@ export class ReaiSiteClient {
    * @returns {Promise<SiteApiResponse<SiteAvailability>>}
    */
   async availability(variantId, context) {
-    /** @type {SiteApiOperations["availability"]["parameters"]["path"]} */
+  /** @type {SiteApiOperations["availability"]["parameters"]["path"]} */
     const path = { variantId };
     /** @type {SiteApiOperations["availability"]["parameters"]["query"]} */
     const query = context;
     return new SiteApiResponse(await this.#request(expandPath(AVAILABILITY_PATH, path), query));
+  }
+
+  /** @param {import("./site-api.d.ts").components["schemas"]["SiteCartQuoteReq"]} body @param {DeliveryContext} context */
+  async quoteCart(body, context) {
+    return new SiteApiResponse(await this.#request("/site/v1/commerce/cart-quote", context,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+  }
+
+  /** @param {string} id @returns {Promise<SiteApiResponse<import("./site-api.d.ts").components["schemas"]["SiteCheckoutDetailsDto"]>>} */
+  async checkoutDetails(id) {
+    return new SiteApiResponse(await this.#request(expandPath("/site/v1/commerce/checkout-sessions/{id}", { id })));
+  }
+  /** @param {string} id @param {import("./site-api.d.ts").components["schemas"]["SiteCheckoutCountryReq"]} body @param {string} key */
+  async changeCheckoutCountry(id, body, key) {
+    return new SiteApiResponse(await this.#request(expandPath("/site/v1/commerce/checkout-sessions/{id}/change-country", { id }), undefined,
+      { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": key }, body: JSON.stringify(body) }));
+  }
+  /** @param {string} id @param {import("./site-api.d.ts").components["schemas"]["SiteCheckoutUpdateReq"]} body */
+  async updateCheckout(id, body) {
+    return new SiteApiResponse(await this.#request(expandPath("/site/v1/commerce/checkout-sessions/{id}", { id }), undefined,
+      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+  }
+  /** @param {string} id @param {import("./site-api.d.ts").components["schemas"]["SiteCheckoutOptionsReq"]} body */
+  async checkoutDeliveryOptions(id, body) {
+    return new SiteApiResponse(await this.#request(expandPath("/site/v1/commerce/checkout-sessions/{id}/delivery-options", { id }), undefined,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+  }
+  /** @param {string} id @param {string} query @param {string} countryCode */
+  async checkoutAddressSuggestions(id, query, countryCode) {
+    return new SiteApiResponse(await this.#request(expandPath("/site/v1/commerce/checkout-sessions/{id}/address-suggestions", { id }), { query, countryCode }));
+  }
+  /** @param {string} id @param {import("./site-api.d.ts").components["schemas"]["SiteCheckoutPrepareReq"]} body */
+  async prepareCheckoutPayment(id, body) {
+    return new SiteApiResponse(await this.#request(expandPath("/site/v1/commerce/checkout-sessions/{id}/prepare-payment", { id }), undefined,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
   }
 
   /**
@@ -209,7 +273,7 @@ export class ReaiSiteClient {
     const query = context;
     /** @type {SiteApiOperations["createCheckoutSession"]["parameters"]["header"]} */
     const operationHeaders = { "Idempotency-Key": idempotencyKey };
-    const headers = new Headers({ ...operationHeaders, "Content-Type": "application/json" });
+    const headers = new Headers({ ...operationHeaders, "Content-Type": "application/json", "Accept-Language": context.locale });
     return new SiteApiResponse(await this.#request(CHECKOUT_PATH, query, {
       method: "POST",
       headers,

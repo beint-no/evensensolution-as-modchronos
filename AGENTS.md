@@ -38,8 +38,10 @@ Production and preview publishing are local-first. Actions workflows are manual-
 while the private Actions budget is unavailable. `npm run deploy` checks and deploys
 both the storefront and the short-address alias. `npm run deploy:local` does the same.
 The runtime always uses https://app.reai.no, never a developer tunnel.
-`REAI_REVIEW_ONLY=true` blocks checkout on the server and disables the checkout button;
-product browsing and the local cart remain usable. Both review addresses are noindex.
+`REAI_REVIEW_ONLY=true` permits read-only cart quotes and a checkout form preview,
+but rejects every checkout-session, delivery-selection and payment write. No review
+interaction creates an order, payment, reservation or customer. The preview does
+not claim to validate an address or delivery quote. Both review addresses are noindex.
 Do not remove this guard or connect modchronos.com without merchant launch approval.
 
 ## Manual PR previews
@@ -83,3 +85,25 @@ REAI_PREVIEW_CREDENTIAL_FILE to a token file outside Git, or provide
 REAI_PREVIEW_CREDENTIAL in your local environment. Never use the live Site token
 for a preview or commit a credential. Obtain the read-only credential through
 ReAI Site credential management.
+
+## Promotions and merchant checkout
+
+The ReAI `watch-offer` collection owns ready-to-buy watch eligibility. The automatic
+3FOR2 quantity offer is managed in ReAI: cheapest eligible units are free, repeated
+for each full group of three. Zero-price cases and accessories never qualify. The
+Worker adds one `skinnetui-med-verktoy` per eligible watch, including free watches,
+then requests an authoritative read-only cart quote. Recompute after every cart edit;
+do not implement a separate browser pricing rule. Gift-inclusive carts allow up to
+99 watches, matching the Site API line limit.
+
+`MERCHANT_CHECKOUT_PATH=/checkout` keeps contact/address/delivery in the Worker,
+following the New Movements checkout/client implementation. Live sessions, revision
+checks, discounts, shipping discovery and unpayable payment preparation remain ReAI
+owned. Only secure summary/payment moves to ReAI. Private checkout pages and proxies
+are no-store, noindex and no-referrer. Confirmation verifies completion before
+subtracting purchased quantities once. Preserve review mode until merchant launch
+approval; never enable payments just to verify the UI.
+
+The public-source ready-to-buy catalog is imported from Shopify and published in
+ReAI. Custom-builder products remain outside this preview until a supported builder
+exists; do not imply that the original third-party customizer has been migrated.
