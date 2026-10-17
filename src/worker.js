@@ -4,7 +4,8 @@ import { sourcePages } from "./source-pages.js";
 import { aboutHtml } from "./about-content.js";
 import { storeContent } from "./store-content.js";
 import { language, ui } from "./ui-copy.js";
-import { withWatchCase } from "../public/cart-rules.js";
+import { merchantCheckout } from "./merchant-checkout.js";
+import { withWatchCase, watchProductIds } from "../public/cart-rules.js";
 
 const HTML_HEADERS = {
   "content-type": "text/html; charset=utf-8",
@@ -127,7 +128,7 @@ function page(site, store, title, body, status = 200) {
     <a class="button" href="/cart">${t.viewCart}</a>
     <p class="cart-note">${store?.reviewOnly ? t.previewCartNote : t.cartNote}</p>
   </dialog>
-  <script src="/store.js?v=20261017-case" type="module"></script>
+  <script src="/store.js?v=20261017-3for2" type="module"></script>
 </body>
 </html>`, { status, headers: { ...HTML_HEADERS, "x-robots-tag": "noindex, nofollow" } });
 }
@@ -218,7 +219,7 @@ function cartPage(site, store) {
   const t = ui(store.locale);
   return page(site, store, t.cart, `<section class="shell inner-page"><a class="breadcrumb" href="/collections/all">${t.continueShopping}</a>
     <h1>${t.yourCart}</h1><div data-cart-items><p>${t.loadingCart}</p></div><p data-cart-total class="cart-total"></p>
-    <button class="button" type="button" data-start-checkout data-review-only="${Boolean(store.reviewOnly)}" disabled>${t.checkout}</button>
+    <button class="button" type="button" data-start-checkout data-review-only="false" disabled>${store.reviewOnly ? t.previewCheckoutButton : t.checkout}</button>
     <p data-checkout-error role="alert" tabindex="-1" hidden></p>
     <p class="cart-note">${store.reviewOnly ? t.previewCartNote : t.cartNote}</p></section>`);
 }
@@ -277,7 +278,7 @@ function checkoutLines(body) {
   if (!body || !Array.isArray(body.lines) || body.lines.length < 1 || body.lines.length > 100) return null;
   const lines = body.lines.map((line) => ({ variantId: line?.variantId, quantity: line?.quantity }));
   if (lines.some((line) => typeof line.variantId !== "string" || !uuid.test(line.variantId)
-      || !Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > 20)) return null;
+      || !Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > 99)) return null;
   return lines;
 }
 
@@ -309,17 +310,18 @@ function routeHandle(pathname, segment) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "POST") return new Response("Method not allowed", { status: 405 });
-    if (url.pathname.startsWith("/assets/") || ["/styles.css", "/store.js", "/cart-rules.js", "/storefront-mark.svg", "/storefront-hero.avif"].includes(url.pathname)) return env.ASSETS.fetch(request);
+    if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "POST" && request.method !== "PATCH") return new Response("Method not allowed", { status: 405 });
+    if (url.pathname.startsWith("/assets/") || ["/styles.css", "/store.js", "/cart-rules.js", "/checkout.js", "/checkout-preview.js", "/checkout.css", "/storefront-mark.svg", "/storefront-hero.avif"].includes(url.pathname)) return env.ASSETS.fetch(request);
     if (env.CANONICAL_HOSTNAME && url.hostname.endsWith(".workers.dev") && url.hostname !== env.CANONICAL_HOSTNAME && ["GET", "HEAD"].includes(request.method)) {
       url.hostname = env.CANONICAL_HOSTNAME;
       return Response.redirect(url.href, 308);
     }
-    if (request.method === "POST") {
-      if (env.REAI_REVIEW_ONLY === "true") return json({ error: ui("nb").previewCheckout }, 403);
-      if (url.pathname !== "/checkout/start") return json({ error: "Method not allowed" }, 405);
+    if (request.method === "POST" || request.method === "PATCH") {
+      if (env.REAI_REVIEW_ONLY === "true" && !["/cart/quote", "/checkout/start"].includes(url.pathname)) return json({ error: ui("nb").previewCheckout }, 403);
+      if (!["/checkout/start", "/cart/quote"].includes(url.pathname) && !url.pathname.startsWith("/reai/checkout/")) return json({ error: "Method not allowed" }, 405);
       if (request.headers.get("Origin") !== url.origin) return json({ error: "Invalid origin" }, 403);
       if (!request.headers.get("Content-Type")?.startsWith("application/json")) return json({ error: "Expected JSON" }, 415);
+      if (env.CHECKOUT_RATE_LIMIT && !(await env.CHECKOUT_RATE_LIMIT.limit({key:`${url.host}:${request.headers.get("CF-Connecting-IP")||"local"}`})).success) return json({error:ui("nb").tooManyRequests},429);
     }
 
     if (!env.REAI_API_BASE_URL || !env.REAI_SITE_CREDENTIAL) {
@@ -332,22 +334,29 @@ export default {
       if (!(["http:", "https:"].includes(baseUrl.protocol))) throw new Error("Invalid API URL");
       const client = new ReaiSiteClient({ baseUrl: baseUrl.href, token: env.REAI_SITE_CREDENTIAL });
       const site = await delivery(client.site());
+      const merchant = await merchantCheckout(request, env, client, site, boundedJson);
+      if (merchant) return merchant;
       const market = site.markets?.find((entry) => entry.isDefault) || site.markets?.[0];
       if (!market) throw new Error("No Site market configured");
       const context = { market: market.handle, locale: market.defaultLocale };
-      if (url.pathname === "/checkout/start") {
+      if (["/checkout/start", "/cart/quote"].includes(url.pathname)) {
         if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
         const body = await boundedJson(request);
         let lines = checkoutLines(body);
         if (!lines) return json({ error: "Invalid cart" }, 400);
         if (env.WATCH_CASE_PROMOTION === "true") {
           const catalog = await delivery(client.storefront(context));
-          lines = withWatchCase(lines, catalog);
+          try { lines = withWatchCase(lines, catalog); } catch (error) { return json({error:error.message === "watch_limit" ? ui(context.locale).cartLimit : ui(context.locale).caseUnavailable},400); }
           if (!lines.length) return json({ error: ui(context.locale).emptyCart }, 400);
         }
+        if (url.pathname === "/cart/quote") {
+          const quote = await client.quoteCart({lines},context);
+          return new Response(quote.response.body,{status:quote.response.status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
+        }
+        if (env.REAI_REVIEW_ONLY === "true") return json({checkoutUrl:`${url.origin}/checkout`});
         try {
           const session = await delivery(client.createCheckoutSession(
-            { lines, returnUrl: `${url.origin}/checkout/complete` }, context,
+            { lines, returnUrl: `${url.origin}/checkout/complete`, ...(env.MERCHANT_CHECKOUT_PATH ? {merchantCheckoutUrl: `${url.origin}${env.MERCHANT_CHECKOUT_PATH}`} : {}) }, context,
             request.headers.get("Idempotency-Key") || crypto.randomUUID(),
           ));
           return json({ checkoutUrl: session.checkoutUrl });
@@ -376,7 +385,7 @@ export default {
         }));
       }
 
-      if (url.pathname === "/catalog.json") return json({ products: store.products, currency: store.currency, locale: store.locale });
+      if (url.pathname === "/catalog.json") return json({ products: store.products, currency: store.currency, locale: store.locale, watchProductIds: watchProductIds(store) });
       if (url.pathname === "/") return home(site, store);
       if (url.pathname === "/search") return catalogPage(site, store, url);
       if (/^\/collections\/?$/.test(url.pathname)) return collectionsPage(site, store);
@@ -398,7 +407,7 @@ export default {
       const t = ui(store.locale);
       return page(site, store, t.notFound, `<section class="shell inner-page"><span class="eyebrow">404</span><h1>${t.notFoundHeading}</h1><a class="button" href="/">${t.backToStore}</a></section>`, 404);
     } catch {
-      if (url.pathname === "/checkout/start") return json({ error: "Checkout is temporarily unavailable" }, 502);
+      if (["/checkout/start", "/cart/quote"].includes(url.pathname)) return json({ error: "Checkout is temporarily unavailable" }, 502);
       const t = ui("en");
       return page(null, { locale: "en" }, t.temporarilyUnavailable, `<section class="shell inner-page"><span class="eyebrow">${t.tryAgain}</span><h1>${t.unavailableHeading}</h1><p class="lead">${t.unavailableText}</p></section>`, 502);
     }

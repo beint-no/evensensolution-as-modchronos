@@ -4,6 +4,8 @@ export function language(locale) {
 
 const copy = {
   nb: {
+    tooManyRequests: "For mange forespørsler. Vent litt og prøv igjen.", caseUnavailable: "Klokkeetuiet er midlertidig utilgjengelig. Prøv igjen senere.",
+    cartLimit: "Handlekurven kan inneholde maksimalt 99 klokker med etui.", previewCheckoutButton: "Forhåndsvis kassen",
     close: "Lukk", viewCart: "Se handlekurven", emptyCart: "Handlekurven er tom.",
     homeTitle: "Håndmonterte klokker", brandStrip: "JAPANSK URVERK · HÅNDMONTERT", watches: "Klokker", menu: "Meny", search: "Søk",
     heroTitle: "Bygget for<br>din stil.", heroDescription: "Håndmonterte klokker med japanske urverk. Finn uttrykket som passer deg.",
@@ -84,6 +86,8 @@ const copy = {
     unavailableText: "Vi kunne ikke laste inn produktene akkurat nå.",
   },
   en: {
+    tooManyRequests: "Too many requests. Please wait and try again.", caseUnavailable: "The watch case is temporarily unavailable. Please try again later.",
+    cartLimit: "The cart can contain at most 99 watches with cases.", previewCheckoutButton: "Preview checkout",
     close: "Close", viewCart: "View cart", emptyCart: "Your cart is empty.",
     homeTitle: "Hand-assembled watches", brandStrip: "JAPANESE MOVEMENTS · HAND ASSEMBLED", watches: "Watches", menu: "Menu", search: "Search",
     heroTitle: "Built for<br>your style.", heroDescription: "Hand-assembled watches with Japanese movements. Find the expression that feels like you.",

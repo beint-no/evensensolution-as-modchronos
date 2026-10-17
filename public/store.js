@@ -4,12 +4,14 @@ const CART_KEY = "reai-storefront-cart-v1";
 const CHECKOUT_KEY = "reai-storefront-checkout-started";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TEXT = /^(?:nb|nn|no)(?:-|$)/i.test(document.documentElement.lang) ? {
+  calculating: "Beregner tilbud…", discount: "3 for 2 · automatisk rabatt", cartLimit: "Maksimalt 99 klokker med etui per handlekurv.",
   includedCase: "Inkludert automatisk med bestillingen",
   outOfStock: "Utsolgt", stockLimit: (count) => `Bare ${count} kan kjøpes. Reduser antallet.`, added: "Lagt i handlekurven.", saveError: "Nettleseren kunne ikke lagre handlekurven.", empty: "Handlekurven er tom.",
   unavailableProduct: "Utilgjengelig produkt", removeToContinue: "Fjern produktet for å fortsette", quantity: "Antall for",
   remove: "Fjern", estimatedTotal: "Estimert totalsum", cartUnavailable: "Handlekurven er midlertidig utilgjengelig. Prøv igjen.",
   viewCart: "Se handlekurven", openingCheckout: "Åpner kassen…", checkout: "Gå til kassen", checkoutError: "Kunne ikke starte betalingen.",
 } : {
+  calculating: "Calculating offer…", discount: "3 for 2 · automatic offer", cartLimit: "At most 99 watches with cases per cart.",
   includedCase: "Automatically included with your order",
   outOfStock: "Out of stock", stockLimit: (count) => `Only ${count} can be purchased. Reduce the quantity.`, added: "Added to cart.", saveError: "Your browser could not save the cart.", empty: "Your cart is empty.",
   unavailableProduct: "Unavailable product", removeToContinue: "Remove this item to continue", quantity: "Quantity for",
@@ -21,7 +23,7 @@ function readCart() {
   try {
     const value = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
     return Array.isArray(value) ? value.filter((item) => UUID.test(item.variantId)
-      && Number.isInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 20) : [];
+      && Number.isInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 99) : [];
   } catch {
     return [];
   }
@@ -29,6 +31,9 @@ function readCart() {
 
 let catalog = null;
 let catalogRequest;
+let cartQuote = null;
+let quoteError = null;
+let quoteRequest = 0;
 const drawer = document.querySelector("[data-cart-drawer]");
 
 function loadCatalog() {
@@ -72,7 +77,7 @@ document.querySelectorAll("[data-add-to-cart]").forEach((addForm) => {
       renderAll();
       drawer?.showModal();
     } catch {
-      message.textContent = TEXT.saveError;
+      message.textContent = TEXT.cartLimit;
     }
   });
 });
@@ -83,14 +88,22 @@ const checkoutError = document.querySelector("[data-checkout-error]");
 let stockIssues = new Map();
 
 function renderAll() {
-  saveCart(readCart());
+  try { saveCart(readCart()); } catch { quoteError = TEXT.cartLimit; if(checkoutButton)checkoutButton.disabled=true; return; }
+  const lines=readCart(), key=JSON.stringify(lines), sequence=++quoteRequest;
+  quoteError=null;
   cartRoots.forEach(renderCart);
+  if(!lines.length){cartQuote=null;return;}
+  fetch('/cart/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines})})
+    .then(async response=>{const result=await response.json();if(!response.ok){stockIssues=new Map((result.stockIssues||[]).map(issue=>[issue.variantId,issue]));throw Error(result.detail||result.error||TEXT.cartUnavailable)}return result;})
+    .then(value=>{if(sequence!==quoteRequest)return;stockIssues.clear();cartQuote={...value,key};cartRoots.forEach(renderCart);})
+    .catch(error=>{if(sequence!==quoteRequest)return;quoteError=error.message;cartRoots.forEach(renderCart);});
 }
 
 function renderCart(cartRoot) {
   const cartTotal = cartRoot.parentElement.querySelector("[data-cart-total]");
   const gift = watchCase(catalog);
   const cart = readCart();
+  const quote = cartQuote?.key === JSON.stringify(cart) ? cartQuote : null;
   const variants = new Map((catalog?.products || []).flatMap((product) =>
     (product.variants || []).map((variant) => [variant.id, { product, variant }])));
   cartRoot.replaceChildren();
@@ -103,7 +116,6 @@ function renderCart(cartRoot) {
     cartTotal.textContent = "";
     return;
   }
-  let total = 0;
   for (const item of cart) {
     const found = variants.get(item.variantId);
     const row = document.createElement("div");
@@ -129,8 +141,10 @@ function renderCart(cartRoot) {
       title.append(options);
     }
     const detail = document.createElement("span");
-    detail.textContent = found ? new Intl.NumberFormat(catalog.locale, { style: "currency", currency: catalog.currency })
-      .format(Number(found.variant.price)) : TEXT.removeToContinue;
+    const quoteLine=quote?.lines.find(line=>line.variantId===item.variantId);
+    const money=value=>new Intl.NumberFormat(catalog.locale,{style:'currency',currency:catalog.currency}).format(Number(value));
+    detail.textContent = found ? money(quoteLine?.total ?? Number(found.variant.price)*item.quantity) : TEXT.removeToContinue;
+    if(quoteLine && quoteLine.total < quoteLine.subtotal){const original=document.createElement('s');original.textContent=money(quoteLine.subtotal);detail.prepend(original,document.createElement('br'));}
     const quantity = document.createElement("input");
     quantity.type = "number";
     quantity.min = "1";
@@ -175,10 +189,12 @@ function renderCart(cartRoot) {
       row.append(warning);
     }
     cartRoot.append(row);
-    if (found) total += Number(found.variant.price) * item.quantity;
   }
-  if (checkoutButton) checkoutButton.disabled = checkoutButton.dataset.reviewOnly === "true" || cart.some((item) => !variants.has(item.variantId) || variants.get(item.variantId).variant.outOfStock || stockIssues.has(item.variantId));
-  cartTotal.textContent = `${TEXT.estimatedTotal}: ${new Intl.NumberFormat(catalog.locale, { style: "currency", currency: catalog.currency }).format(total)}`;
+  if (checkoutButton) checkoutButton.disabled = !quote || Boolean(quoteError) || cart.some((item) => !variants.has(item.variantId) || variants.get(item.variantId).variant.outOfStock || stockIssues.has(item.variantId));
+  const money=value=>new Intl.NumberFormat(catalog.locale,{style:'currency',currency:catalog.currency}).format(Number(value));
+  cartTotal.replaceChildren();
+  if(quote?.discount){const offer=document.createElement('small');offer.className='cart-offer';offer.textContent=`${TEXT.discount}: −${money(quote.discount)}`;cartTotal.append(offer);}
+  cartTotal.append(document.createTextNode(quoteError || (quote ? `${TEXT.estimatedTotal}: ${money(quote.total)}` : TEXT.calculating)));
 }
 
 function showCartError() {
@@ -226,15 +242,6 @@ if (checkoutButton) {
     }
   });
 }
-
-if (document.querySelector("[data-checkout-complete]")) {
-  if (sessionStorage.getItem(CHECKOUT_KEY) === "1") {
-    localStorage.removeItem(CART_KEY);
-    sessionStorage.removeItem(CHECKOUT_KEY);
-    saveCart([]);
-  }
-}
-
 
 document.querySelectorAll("[data-gallery-select]").forEach((button) => {
   button.addEventListener("click", () => {

@@ -56,3 +56,19 @@ threshold. A separately purchased travel case is not the complimentary item.
 `WATCH_CASE_PROMOTION=true` applies the same normalization to trusted checkout
 requests. Zero-price delivery requires ReAI's explicit market-price support.
 Review-only checkout remains disabled; this is still a demo, not a merchant launch.
+
+## 3-for-2 and checkout follow-up
+
+The merchant clarified that a free case belongs to each watch, including the free
+watch in the 3-for-2 offer. This supersedes the earlier Shopify spend-threshold
+snapshot. ReAI owns the automatic quantity promotion and eligible watch collection.
+Cart lines show extended, discounted amounts and a separate saving; the total is
+quoted by ReAI, not calculated as a browser-only promotion. Accessories and the
+24-watch bundles are excluded. More of the source's ready-to-buy range is published.
+
+Merchant checkout rendering and browser interactions were adapted from the New
+Movements implementation, retaining ModChronos branding and policy links. Review
+mode offers contact-form and order-summary previews without storing contact details
+or creating orders/payments. Live-mode proxy behavior is tested against an isolated
+local ReAI database. Shipping eligibility and payment remain launch checks; preview
+form completion is not a validated delivery quote.
