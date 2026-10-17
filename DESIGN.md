@@ -44,3 +44,15 @@ The old emailed URL redirects to the short address. Local deployments publish bo
 Workers; Actions is manual-only. Review checkout is disabled both server-side and
 in the cart, and review pages are noindex. This is not a merchant-domain cutover or
 a Shopify cancellation. Policy source snapshots still require launch review.
+
+## Watch-case cart follow-up
+
+The bag opens in a native modal side panel after adding a product, following the
+New Movements shopping flow. The free `skinnetui-med-verktoy` product and its
+images, SKU and zero price come from ReAI. The original Shopify Cart Bot rules
+were inspected on 17 October 2026: one case from NOK 2,000 and two from NOK 5,000.
+The cart updates the included quantity after edits and removes cases below the
+threshold. A separately purchased travel case is not the complimentary item.
+`WATCH_CASE_PROMOTION=true` applies the same normalization to trusted checkout
+requests. Zero-price delivery requires ReAI's explicit market-price support.
+Review-only checkout remains disabled; this is still a demo, not a merchant launch.
