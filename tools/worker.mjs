@@ -39,6 +39,7 @@ const run = (file, args, cwd = root) => execFileSync(file, args, { cwd, env, std
 
 if (command === "deploy") {
   for (const check of site.checks) run("npm", ["run", check]);
+  if (site.aliasConfig) run("wrangler", ["deploy", "--config", path.join(root, site.aliasConfig), ...(dryRun ? ["--dry-run"] : [])]);
   run("wrangler", ["deploy", "--config", configFile, ...(dryRun ? ["--dry-run"] : [])], path.dirname(configFile));
 } else {
   env.CLOUDFLARE_ACCOUNT_ID ||= config.account_id;

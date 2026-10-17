@@ -4,6 +4,14 @@ export function language(locale) {
 
 const copy = {
   nb: {
+    homeTitle: "Håndmonterte klokker", brandStrip: "JAPANSK URVERK · HÅNDMONTERT", watches: "Klokker", menu: "Meny", search: "Søk",
+    heroTitle: "Bygget for<br>din stil.", heroDescription: "Håndmonterte klokker med japanske urverk. Finn uttrykket som passer deg.",
+    exploreWatches: "Utforsk klokkene", heroAlt: "Racing Panda med hvit urskive og stållenkje, vist på håndleddet",
+    brandFeatures: ["Japansk urverk", "Håndmontert", "3 års garanti"], findFavorite: "Finn din favoritt.", allWatches: "Se alle klokker", allCollections: "Alle kolleksjoner",
+    storyTitle: "Din klokke. Ditt uttrykk.", storyDescription: "Hos ModChronos håndbygger vi skreddersydde klokker med japanske urverk.",
+    searchProducts: "Søk etter en klokke", searchPlaceholder: "Prøv blå, dykkerklokke eller dress…", productsCount: "produkter", inStockOnly: "Kun på lager", sort: "Sorter", featured: "Utvalgte", priceLow: "Pris: lav til høy", priceHigh: "Pris: høy til lav", nameSort: "Navn: A–Å", apply: "Vis", searchPrompt: "Søk etter modell, farge eller stil.", noResults: "Ingen produkter passer søket. Prøv et annet søk eller fjern filteret.",
+    productImages: "Produktbilder", image: "Bilde", productQuestion: "Spør oss om klokken",
+    previewCartNote: "Dette er en forhåndsvisning. Du kan prøve handlekurven, men bestilling og betaling er ikke aktivert.", previewCheckout: "Dette er en forhåndsvisning. Bestilling og betaling er ikke aktivert.",
     meta: "Utforsk produkter og kolleksjoner hos",
     skip: "Hopp til innhold",
     shop: "Butikk",
@@ -75,6 +83,14 @@ const copy = {
     unavailableText: "Vi kunne ikke laste inn produktene akkurat nå.",
   },
   en: {
+    homeTitle: "Hand-assembled watches", brandStrip: "JAPANESE MOVEMENTS · HAND ASSEMBLED", watches: "Watches", menu: "Menu", search: "Search",
+    heroTitle: "Built for<br>your style.", heroDescription: "Hand-assembled watches with Japanese movements. Find the expression that feels like you.",
+    exploreWatches: "Explore the watches", heroAlt: "White-dial Racing Panda chronograph with a steel bracelet, worn on a wrist",
+    brandFeatures: ["Japanese movements", "Hand assembled", "3-year warranty"], findFavorite: "Find your favourite.", allWatches: "Explore all watches", allCollections: "All collections",
+    storyTitle: "Your watch. Your expression.", storyDescription: "At ModChronos we hand-assemble customised watches with Japanese movements.",
+    searchProducts: "Search for a watch", searchPlaceholder: "Try blue, diver or dress…", productsCount: "products", inStockOnly: "In stock only", sort: "Sort", featured: "Featured", priceLow: "Price: low to high", priceHigh: "Price: high to low", nameSort: "Name: A–Z", apply: "Apply", searchPrompt: "Search by model, colour or style.", noResults: "No products match. Try another search or remove the filter.",
+    productImages: "Product images", image: "Image", productQuestion: "Ask us about this watch",
+    previewCartNote: "This is a preview. You can try the cart, but ordering and payment are not enabled.", previewCheckout: "This is a preview. Ordering and payment are not enabled.",
     meta: "Explore products and collections at",
     skip: "Skip to content",
     shop: "Shop",

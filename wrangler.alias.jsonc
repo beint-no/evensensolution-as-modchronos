@@ -1,0 +1,13 @@
+{
+  "name": "modchronos",
+  "account_id": "d7c5a90b75a693cc738d69f92808f451",
+  "main": "./src/preview-alias.js",
+  "compatibility_date": "2026-09-28",
+  "workers_dev": true,
+  "services": [
+    {
+      "binding": "STOREFRONT",
+      "service": "reai-store-9bd71d09ac8b4b87b22a7719893327d5"
+    }
+  ]
+}
