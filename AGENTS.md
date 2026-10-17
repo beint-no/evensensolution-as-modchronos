@@ -18,8 +18,12 @@ are documented in DESIGN.md. Review preserved merchant claims and Shopify-specif
 policy references before a sales launch. Do not change payment settings or publish
 new promotional promises as part of a design update.
 
-Keep the existing Worker `reai-store-9bd71d09ac8b4b87b22a7719893327d5`, its routes
-and credentials intact. The GitHub rename changes source organization only.
+Keep the existing managed Worker `reai-store-9bd71d09ac8b4b87b22a7719893327d5` and its credentials intact.
+The public review URL is https://modchronos.respiro.workers.dev. Its small `modchronos`
+Worker forwards requests through a same-account service binding to the managed Worker,
+so it holds no duplicate credential or storefront. The old review URL redirects to
+the short URL while preserving paths and queries. Both configs deploy locally.
+The GitHub rename changes source organization only.
 This customized repository is the source of truth; starter updates must be
 reviewed and must never overwrite the client's implementation.
 
@@ -30,14 +34,19 @@ open a PR, and squash merge. Run `npm ci`, `npm run check`, and
 `npx wrangler deploy --dry-run`; inspect relevant desktop/mobile views for design changes.
 Avoid creating production orders or payments for verification.
 
-The Deploy storefront workflow publishes runtime changes merged to main and
-supports manual dispatch. Documentation-only commits do not deploy. With authorized
-Cloudflare credentials, `npm run deploy` is the local fallback when Actions is unavailable.
+Production and preview publishing are local-first. Actions workflows are manual-only
+while the private Actions budget is unavailable. `npm run deploy` checks and deploys
+both the storefront and the short-address alias. `npm run deploy:local` does the same.
+The runtime always uses https://app.reai.no, never a developer tunnel.
+`REAI_REVIEW_ONLY=true` blocks checkout on the server and disables the checkout button;
+product browsing and the local cart remain usable. Both review addresses are noindex.
+Do not remove this guard or connect modchronos.com without merchant launch approval.
 
-## Automatic PR previews
+## Manual PR previews
 
-Open PRs receive a stable isolated Cloudflare Preview URL, updated on pushes
-and removed on close. `.github/workflows/preview.yml` builds without deployment
+PR preview Actions are manual-only. When explicitly dispatched, they create a stable
+isolated Cloudflare Preview URL. Opening or updating a PR does not run Actions.
+`.github/workflows/preview.yml` builds without deployment
 credentials, then requests the trusted preview workflow in beint-no/reai-site-examples through signed
 GitHub Actions OIDC. Cloudflare credentials stay in the central deployment repository.
 The server maps this repository to its assigned Worker, verifies the current PR,

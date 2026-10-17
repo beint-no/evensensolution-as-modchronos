@@ -1,1 +1,19 @@
-{"name":"reai-store-9bd71d09ac8b4b87b22a7719893327d5","main":"./src/worker.js","compatibility_date":"2026-09-28","workers_dev":true,"preview_urls":true,"keep_vars":true,"assets":{"directory":"./public","binding":"ASSETS","run_worker_first":true},"vars":{"REAI_API_BASE_URL":"https://tunnel-khan.resp.no","REAI_MANAGED_PREVIEWS":"true"},"previews":{"vars":{"REAI_API_BASE_URL":"https://tunnel-khan.resp.no"}}}
+{
+  "name": "reai-store-9bd71d09ac8b4b87b22a7719893327d5",
+  "main": "./src/worker.js",
+  "compatibility_date": "2026-09-28",
+  "workers_dev": true,
+  "preview_urls": true,
+  "keep_vars": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "vars": {
+    "REAI_API_BASE_URL": "https://app.reai.no",
+    "CANONICAL_HOSTNAME": "modchronos.respiro.workers.dev",
+    "REAI_REVIEW_ONLY": "true"
+  },
+  "account_id": "d7c5a90b75a693cc738d69f92808f451"
+}

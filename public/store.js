@@ -5,12 +5,12 @@ const TEXT = /^(?:nb|nn|no)(?:-|$)/i.test(document.documentElement.lang) ? {
   outOfStock: "Utsolgt", stockLimit: (count) => `Bare ${count} kan kjøpes. Reduser antallet.`, added: "Lagt i handlekurven.", saveError: "Nettleseren kunne ikke lagre handlekurven.", empty: "Handlekurven er tom.",
   unavailableProduct: "Utilgjengelig produkt", removeToContinue: "Fjern produktet for å fortsette", quantity: "Antall for",
   remove: "Fjern", estimatedTotal: "Estimert totalsum", cartUnavailable: "Handlekurven er midlertidig utilgjengelig. Prøv igjen.",
-  openingCheckout: "Åpner kassen…", checkout: "Gå til kassen", checkoutError: "Kunne ikke starte betalingen.",
+  viewCart: "Se handlekurven", openingCheckout: "Åpner kassen…", checkout: "Gå til kassen", checkoutError: "Kunne ikke starte betalingen.",
 } : {
   outOfStock: "Out of stock", stockLimit: (count) => `Only ${count} can be purchased. Reduce the quantity.`, added: "Added to cart.", saveError: "Your browser could not save the cart.", empty: "Your cart is empty.",
   unavailableProduct: "Unavailable product", removeToContinue: "Remove this item to continue", quantity: "Quantity for",
   remove: "Remove", estimatedTotal: "Estimated total", cartUnavailable: "The cart is temporarily unavailable. Please try again.",
-  openingCheckout: "Opening checkout…", checkout: "Continue to checkout", checkoutError: "Checkout could not be started.",
+  viewCart: "View cart", openingCheckout: "Opening checkout…", checkout: "Continue to checkout", checkoutError: "Checkout could not be started.",
 };
 
 function readCart() {
@@ -48,6 +48,10 @@ document.querySelectorAll("[data-add-to-cart]").forEach((addForm) => {
     try {
       saveCart(cart);
       message.textContent = TEXT.added;
+      const cartLink = document.createElement("a");
+      cartLink.href = "/cart";
+      cartLink.textContent = TEXT.viewCart;
+      message.append(cartLink);
     } catch {
       message.textContent = TEXT.saveError;
     }
@@ -81,9 +85,26 @@ if (cartRoot) {
       const found = variants.get(item.variantId);
       const row = document.createElement("div");
       row.className = "cart-row";
+      const imageLink = document.createElement("a");
+      imageLink.className = "cart-product-image";
+      const productImage = found?.product.images?.[0];
+      if (found) imageLink.href = `/products/${encodeURIComponent(found.product.handle)}`;
+      if (productImage?.url) {
+        const image = document.createElement("img");
+        image.src = productImage.renditions?.find((entry) => entry.width >= 160)?.url || productImage.url;
+        image.alt = productImage.alt || found.product.title;
+        image.width = 90; image.height = 90;
+        imageLink.append(image);
+      }
       const title = document.createElement(found ? "a" : "span");
+      title.className = "cart-product-title";
       if (found) title.href = `/products/${encodeURIComponent(found.product.handle)}`;
       title.textContent = found?.product.title || TEXT.unavailableProduct;
+      if (found?.variant.options?.length) {
+        const options = document.createElement("small");
+        options.textContent = found.variant.options.map((option) => option.value).join(" / ");
+        title.append(options);
+      }
       const detail = document.createElement("span");
       detail.textContent = found ? new Intl.NumberFormat(catalog.locale, { style: "currency", currency: catalog.currency })
         .format(Number(found.variant.price)) : TEXT.removeToContinue;
@@ -112,7 +133,7 @@ if (cartRoot) {
         checkoutError.hidden = true;
         render();
       });
-      row.append(title, detail, quantity, remove);
+      row.append(imageLink, title, detail, quantity, remove);
       const issue = stockIssues.get(item.variantId);
       if (found?.variant.outOfStock || issue) {
         const warning = document.createElement("p");
@@ -125,7 +146,7 @@ if (cartRoot) {
       cartRoot.append(row);
       if (found) total += Number(found.variant.price) * item.quantity;
     }
-    checkoutButton.disabled = cart.some((item) => !variants.has(item.variantId) || variants.get(item.variantId).variant.outOfStock || stockIssues.has(item.variantId));
+    checkoutButton.disabled = checkoutButton.dataset.reviewOnly === "true" || cart.some((item) => !variants.has(item.variantId) || variants.get(item.variantId).variant.outOfStock || stockIssues.has(item.variantId));
     cartTotal.textContent = `${TEXT.estimatedTotal}: ${new Intl.NumberFormat(catalog.locale, { style: "currency", currency: catalog.currency }).format(total)}`;
   }
 
@@ -174,3 +195,15 @@ if (document.querySelector("[data-checkout-complete]")) {
     saveCart([]);
   }
 }
+
+
+document.querySelectorAll("[data-gallery-select]").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll("[data-gallery-image]").forEach((image) => { image.hidden = image.dataset.galleryImage !== button.dataset.gallerySelect; });
+    document.querySelectorAll("[data-gallery-select]").forEach((item) => { item.setAttribute("aria-pressed", String(item === button)); });
+  });
+});
+
+document.querySelectorAll("[data-submit-on-change]").forEach((select) => {
+  select.addEventListener("change", () => select.form.requestSubmit());
+});

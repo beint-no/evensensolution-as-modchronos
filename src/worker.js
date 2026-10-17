@@ -32,11 +32,15 @@ function imageUrl(value) {
   }
 }
 
+const moneyFormatters = new Map();
+
 function price(value, currency, locale) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "";
   try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount);
+    const key = `${locale}:${currency}`;
+    if (!moneyFormatters.has(key)) moneyFormatters.set(key, new Intl.NumberFormat(locale, { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+    return moneyFormatters.get(key).format(amount);
   } catch {
     return `${amount.toFixed(2)} ${currency}`;
   }
@@ -49,35 +53,32 @@ function productPrice(product, store) {
   return `${prefix}${price(Math.min(...prices), store.currency, store.locale)}`;
 }
 
-function picture(product, className = "") {
-  const first = product.images?.[0];
-  const src = imageUrl(first?.url);
-  if (!src) return `<div class="image-placeholder ${className}" aria-hidden="true"><span>✳</span></div>`;
-  const dimensions = Number.isFinite(first.width) && Number.isFinite(first.height)
-    ? ` width="${first.width}" height="${first.height}"` : "";
-  const renditions = (first.renditions || []).filter((image) => imageUrl(image.url) && image.width > 0);
-  const responsive = renditions.length
-    ? ` srcset="${renditions.map((image) => `${escapeHtml(imageUrl(image.url))} ${image.width}w`).join(", ")}" sizes="(max-width: 600px) 100vw, 50vw"` : "";
-  return `<img class="${className}" src="${escapeHtml(src)}"${dimensions}${responsive} alt="${escapeHtml(first.alt || product.title)}" loading="lazy">`;
+function picture(product, className = "", image = product.images?.[0], sizes = "(max-width: 600px) 50vw, 25vw", eager = false) {
+  const src = imageUrl(image?.url);
+  if (!src) return `<div class="image-placeholder ${className}" aria-hidden="true"></div>`;
+  const dimensions = image.width > 0 && image.height > 0 ? ` width="${Number(image.width)}" height="${Number(image.height)}"` : "";
+  const renditions = (image.renditions || []).filter((item) => imageUrl(item.url) && item.width > 0);
+  const responsive = renditions.length ? ` srcset="${renditions.map((item) => `${escapeHtml(imageUrl(item.url))} ${Number(item.width)}w`).join(", ")}" sizes="${sizes}"` : "";
+  return `<img class="${className}" src="${escapeHtml(src)}"${dimensions}${responsive} alt="${escapeHtml(image.alt || product.title)}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">`;
 }
 
 function card(product, store) {
   const href = `/products/${encodeURIComponent(product.handle)}`;
   const t = ui(store.locale);
-  const variants = product.variants || [];
-  const action = variants.length === 1
-    ? `<form data-add-to-cart>
-        <input type="hidden" name="variantId" value="${escapeHtml(variants[0].id)}">
-        <input type="hidden" name="quantity" value="1">
-        <button class="button" type="submit"${variants[0].outOfStock ? " disabled" : ""}>${variants[0].outOfStock ? t.outOfStock : t.addToCart}</button>
-        <p data-add-message role="status"></p>
-      </form>`
-    : variants.length > 1 ? (variants.every((variant) => variant.outOfStock) ? `<button class="button" disabled>${t.outOfStock}</button>` : `<a class="button" href="${href}">${t.chooseVariant}</a>`) : "";
+  const soldOut = product.variants?.length && product.variants.every((variant) => variant.outOfStock);
   return `<article class="product-card">
-    <a class="product-image" href="${href}" aria-label="${escapeHtml(product.title)}">${picture(product)}</a>
+    <a class="product-image" href="${href}" aria-label="${escapeHtml(product.title)}">${picture(product)}${product.images?.[1] ? picture(product, "alternate-image", product.images[1]) : ""}${soldOut ? `<span class="stock-label">${t.outOfStock}</span>` : ""}</a>
     <div class="product-meta"><h3><a href="${href}">${escapeHtml(product.title)}</a></h3><span>${escapeHtml(productPrice(product, store))}</span></div>
-    <div class="product-actions"><a class="text-link" href="${href}">${t.viewProduct} <span aria-hidden="true">↗</span></a>${action}</div>
+    <a class="text-link product-discover" href="${href}">${t.viewProduct} <span aria-hidden="true">↗</span></a>
   </article>`;
+}
+
+const FEATURED_HANDLES = ["automatisk-dykkerklokke-bla", "automatisk-dykkerklokke-gronn", "dress-klokke-dato-hvit", "automatisk-sportsklokke-hvit"];
+
+function featuredProducts(store) {
+  const products = store.products || [];
+  const selected = FEATURED_HANDLES.map((handle) => products.find((product) => product.handle === handle)).filter(Boolean);
+  return [...selected, ...products.filter((product) => !selected.includes(product))].slice(0, 4);
 }
 
 function page(site, store, title, body, status = 200) {
@@ -98,16 +99,19 @@ function page(site, store, title, body, status = 200) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="${t.meta} ${escapeHtml(name)}.">
   <meta name="theme-color" content="#111111">
+  <meta name="robots" content="noindex, nofollow">
   <title>${escapeHtml(title)} · ${escapeHtml(name)}</title>
   <link rel="icon" href="/assets/modchronos-logo.jpg" type="image/jpeg">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=20261017">
 </head>
 <body>
   <a class="skip-link" href="#main">${t.skip}</a>
-  <div class="announcement">${escapeHtml(content.tagline)}</div>
+  <div class="announcement">${t.brandStrip}</div>
   <header class="site-header shell">
-    <a class="wordmark" href="/"><img src="/assets/modchronos-logo.jpg" alt="ModChronos" width="220" height="48"></a>
-    <nav aria-label="${t.shop}"><a href="/collections/all">${t.shop}</a><a href="/collections">${t.collections}</a><a href="/pages/about">${t.about}</a><a href="/pages/contact">${t.contact}</a><a class="cart-link" href="/cart">${t.cart} <span data-cart-count>0</span></a></nav>
+    <a class="wordmark" href="/" aria-label="ModChronos"><img src="/assets/modchronos-logo.jpg" alt="ModChronos" width="220" height="48"></a>
+    <nav class="desktop-nav" aria-label="${t.shop}"><a href="/collections/all">${t.watches}</a><a href="/collections">${t.collections}</a><a href="/pages/about">${t.about}</a><a href="/pages/contact">${t.contact}</a></nav>
+    <div class="header-actions"><a href="/search" class="search-link">${t.search}</a><a class="cart-link" href="/cart">${t.cart} (<span data-cart-count>0</span>)</a>
+    <details class="mobile-menu"><summary>${t.menu}</summary><nav aria-label="${t.menu}"><a href="/collections/all">${t.watches}</a><a href="/collections">${t.collections}</a><a href="/pages/about">${t.about}</a><a href="/pages/contact">${t.contact}</a><a href="/search">${t.search}</a></nav></details></div>
   </header>
   <main id="main">${body}</main>
   <footer class="site-footer"><div class="shell footer-grid">
@@ -116,68 +120,66 @@ function page(site, store, title, body, status = 200) {
     <div><h2>${t.help}</h2><a href="/pages/contact">${t.contact}</a><a href="/pages/shipping">${t.shipping}</a><a href="/policies/returns">${t.returns}</a></div>
     <div><h2>${t.about}</h2><a href="/pages/about">${t.ourStory}</a>${contact}<a href="/policies/privacy">${t.privacy}</a><a href="/policies/terms">${t.terms}</a></div>
   </div><div class="shell footer-bottom"><span>© ${new Date().getUTCFullYear()} ${escapeHtml(legalName)}${storeContent.organizationNumber ? ` · ${escapeHtml(storeContent.organizationNumber)}` : ""}</span><span>${t.poweredBy} <a href="https://reai.no" rel="external">ReAI</a></span></div></footer>
-  <script src="/store.js" defer></script>
+  <script src="/store.js?v=20261017" defer></script>
 </body>
-</html>`, { status, headers: HTML_HEADERS });
+</html>`, { status, headers: { ...HTML_HEADERS, "x-robots-tag": "noindex, nofollow" } });
 }
 
 function home(site, store) {
   const t = ui(store.locale);
-  const content = brandContent;
-  const collectionLinks = (store.collections || []).slice(0, 3).map((collection, index) => collectionTile(collection, index, store)).join("");
-  const products = (store.products || []).slice(0, 8);
-  return page(site, store, t.shop, `
-    <section class="hero shell">
-      <div class="hero-copy"><span class="eyebrow">${escapeHtml(content.heroEyebrow)}</span>
-        <h1>${escapeHtml(content.heroTitle)}</h1>
-        <p>${escapeHtml(content.heroDescription)}</p>
-        <a class="button" href="/collections/all">${t.discoverProducts} <span aria-hidden="true">↗</span></a>
-      </div>
-      <div class="hero-art"><img src="/storefront-hero.avif" alt="" width="1600" height="1600" fetchpriority="high"></div>
+  const products = featuredProducts(store);
+  const collections = (store.collections || []).filter((collection) => collection.products?.length);
+  return page(site, store, t.homeTitle, `
+    <section class="hero">
+      <div class="hero-copy"><h1>${t.heroTitle}</h1><p>${t.heroDescription}</p><div class="hero-actions"><a class="button" href="/collections/all">${t.exploreWatches} <span aria-hidden="true">↗</span></a><a class="text-link" href="/pages/about">${t.ourStory}</a></div></div>
+      <div class="hero-art"><img src="/storefront-hero.avif" alt="${t.heroAlt}" width="1600" height="1600" fetchpriority="high"></div>
     </section>
-    <section class="shell value-strip" aria-label="${t.shop}">${content.features.map(([heading, text]) => `<div><strong>${escapeHtml(heading)}</strong><span>${escapeHtml(text)}</span></div>`).join("")}</section>
-    ${collectionLinks ? `<section class="shell collection-section"><div class="section-heading"><span class="eyebrow">${t.collectionEyebrow}</span><h2>${t.exploreCollections}</h2><a class="text-link" href="/collections">${t.collections} ↗</a></div><div class="collection-grid">${collectionLinks}</div></section>` : ""}
-    <section class="shell product-section" id="products"><div class="section-heading"><span class="eyebrow">${t.productsEyebrow}</span><h2>${t.ourProducts}</h2><a class="text-link" href="/collections/all">${t.allProducts} ↗</a></div>
+    <div class="shell value-strip">${t.brandFeatures.map((heading) => `<span>${heading}</span>`).join("")}</div>
+    <section class="shell product-section" id="products"><div class="section-heading"><h2>${t.findFavorite}</h2><a class="text-link" href="/collections/all">${t.allWatches} ↗</a></div>
       ${products.length ? `<div class="product-grid">${products.map((product) => card(product, store)).join("")}</div>` : `<p class="empty-state">${t.emptyProducts}</p>`}
     </section>
-    <section class="shell story-panel"><div><span class="eyebrow">ModChronos</span><h2>${escapeHtml(content.storyTitle)}</h2></div><div><p>${escapeHtml(content.heroDescription)}</p><a class="text-link" href="/pages/about">${t.knowUs} <span aria-hidden="true">↗</span></a></div></section>`);
+    ${collections.length ? `<section class="shell collection-section"><div class="section-heading"><h2>${t.exploreCollections}</h2><a class="text-link" href="/collections">${t.allCollections} ↗</a></div><div class="collection-grid">${collections.slice(0, 3).map((collection) => collectionTile(collection)).join("")}</div></section>` : ""}
+    <section class="story-band"><div class="shell story-panel"><h2>${t.storyTitle}</h2><div><p>${t.storyDescription}</p><a class="text-link" href="/pages/about">${t.knowUs} ↗</a></div></div></section>`);
 }
 
-function collectionTile(collection, index, store) {
-  const t = ui(store.locale);
-  const image = imageUrl(collection.imageUrl);
-  return `<a class="collection-tile collection-tile-${index % 3 + 1}${image ? " has-image" : ""}" href="/collections/${encodeURIComponent(collection.handle)}">
-    ${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy">` : ""}<span>${t.collection} ${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(collection.title)}</strong><span aria-hidden="true">↗</span>
-  </a>`;
+function collectionTile(collection) {
+  return `<a class="collection-tile" href="/collections/${encodeURIComponent(collection.handle)}"><strong>${escapeHtml(collection.title)}</strong><span aria-hidden="true">↗</span></a>`;
 }
 
 function collectionsPage(site, store) {
   const t = ui(store.locale);
   const collections = store.collections || [];
-  return page(site, store, t.collections, `<section class="shell inner-page">
-    <a class="breadcrumb" href="/">${t.backStore}</a><span class="eyebrow">${t.collectionEyebrow}</span><h1>${t.collections}</h1>
-    ${collections.length ? `<div class="collection-grid">${collections.map((collection, index) => collectionTile(collection, index, store)).join("")}</div>` : `<p class="empty-state">${t.noCollections}</p>`}
-    <a class="text-link browse-all-link" href="/collections/all">${t.allProducts} ↗</a>
-  </section>`);
+  return page(site, store, t.collections, `<section class="shell inner-page"><a class="breadcrumb" href="/">${t.backStore}</a><h1>${t.collections}</h1>
+    ${collections.length ? `<div class="collection-grid">${collections.map((collection) => collectionTile(collection)).join("")}</div>` : `<p class="empty-state">${t.noCollections}</p>`}
+    <a class="text-link browse-all-link" href="/collections/all">${t.allProducts} ↗</a></section>`);
 }
 
-function allProductsPage(site, store) {
+function catalogPage(site, store, url, collection = null) {
   const t = ui(store.locale);
-  const products = store.products || [];
-  return page(site, store, t.allProducts, `<section class="shell inner-page">
-    <a class="breadcrumb" href="/collections">← ${t.collections}</a><span class="eyebrow">${t.productsEyebrow}</span><h1>${t.allProducts}</h1>
-    ${products.length ? `<div class="product-grid">${products.map((product) => card(product, store)).join("")}</div>` : `<p class="empty-state">${t.emptyProducts}</p>`}
-  </section>`);
-}
-
-function collectionPage(site, store, collection) {
-  const t = ui(store.locale);
-  const included = new Set((collection.products || []).map((product) => product.id));
-  const products = (store.products || []).filter((product) => included.has(product.id));
-  return page(site, store, collection.title, `<section class="shell inner-page">
-    <a class="breadcrumb" href="/collections">← ${t.collections}</a><span class="eyebrow">${t.collection}</span>
-    <h1>${escapeHtml(collection.title)}</h1>${descriptionHtml(collection)}
-    ${products.length ? `<div class="product-grid">${products.map((product) => card(product, store)).join("")}</div>` : `<p class="empty-state">${t.noCollectionProducts}</p>`}
+  const searching = url.pathname === "/search";
+  const query = (url.searchParams.get("q") || "").trim().slice(0, 100);
+  const inStock = url.searchParams.get("stock") === "available";
+  const sort = ["featured", "price-asc", "price-desc", "title"].includes(url.searchParams.get("sort")) ? url.searchParams.get("sort") : "featured";
+  const membership = collection ? new Set((collection.products || []).map((product) => product.id)) : null;
+  let products = (store.products || []).filter((product) => !membership || membership.has(product.id));
+  if (searching && query) {
+    const words = query.toLocaleLowerCase(store.locale).split(/\s+/);
+    products = products.filter((product) => words.every((word) => `${product.title} ${product.brand || ""} ${(product.variants || []).flatMap((variant) => (variant.options || []).map((option) => option.value)).join(" ")}`.toLocaleLowerCase(store.locale).includes(word)));
+  }
+  if (searching && !query) products = [];
+  if (inStock) products = products.filter((product) => product.variants?.some((variant) => !variant.outOfStock));
+  const minimum = (product) => Math.min(...(product.variants || []).map((variant) => Number(variant.price)).filter(Number.isFinite));
+  if (sort === "price-asc") products.sort((a, b) => minimum(a) - minimum(b));
+  if (sort === "price-desc") products.sort((a, b) => minimum(b) - minimum(a));
+  if (sort === "title") products.sort((a, b) => a.title.localeCompare(b.title, store.locale));
+  if (sort === "featured") products.sort((a, b) => (FEATURED_HANDLES.indexOf(a.handle) < 0 ? 99 : FEATURED_HANDLES.indexOf(a.handle)) - (FEATURED_HANDLES.indexOf(b.handle) < 0 ? 99 : FEATURED_HANDLES.indexOf(b.handle)));
+  const title = searching ? t.search : collection?.title || t.allProducts;
+  return page(site, store, title, `<section class="shell inner-page catalog-page"><a class="breadcrumb" href="/">${t.backStore}</a><h1>${escapeHtml(title)}</h1>${collection ? descriptionHtml(collection) : ""}
+    <form class="catalog-tools" method="get" action="${escapeHtml(url.pathname)}">
+      ${searching ? `<div class="search-field"><label for="search-query">${t.searchProducts}</label><div><input id="search-query" name="q" type="search" value="${escapeHtml(query)}" maxlength="100" placeholder="${t.searchPlaceholder}"><button class="button" type="submit">${t.search}</button></div></div>` : ""}
+      <div class="catalog-filters"><span role="status">${products.length} ${t.productsCount}</span><label class="stock-filter"><input type="checkbox" name="stock" value="available"${inStock ? " checked" : ""}> ${t.inStockOnly}</label><label for="sort">${t.sort}</label><select name="sort" id="sort" data-submit-on-change>${[["featured", t.featured], ["price-asc", t.priceLow], ["price-desc", t.priceHigh], ["title", t.nameSort]].map(([value, label]) => `<option value="${value}"${sort === value ? " selected" : ""}>${label}</option>`).join("")}</select><button class="filter-submit" type="submit">${t.apply}</button></div>
+    </form>
+    ${products.length ? `<div class="product-grid">${products.map((product) => card(product, store)).join("")}</div>` : `<p class="empty-state">${searching && !query ? t.searchPrompt : t.noResults}</p>`}
   </section>`);
 }
 
@@ -192,12 +194,13 @@ function productPage(site, store, product) {
   }).join("");
   return page(site, store, product.title, `<section class="shell inner-page">
     <a class="breadcrumb" href="/collections/all">${t.backAllProducts}</a>
-    <div class="product-detail"><div class="detail-image">${picture(product)}</div>
+    <div class="product-detail"><div class="product-gallery"><div class="gallery-stage">${(product.images?.length ? product.images : [null]).map((image, index) => `<div class="detail-image" data-gallery-image="${index}"${index ? " hidden" : ""}>${picture(product, "", image, "(max-width: 900px) 100vw, 50vw", index === 0)}</div>`).join("")}</div>${product.images?.length > 1 ? `<div class="gallery-thumbs" aria-label="${t.productImages}">${product.images.map((image, index) => `<button type="button" data-gallery-select="${index}" aria-label="${t.image} ${index + 1}" aria-pressed="${index === 0}">${picture(product, "", image, "80px")}</button>`).join("")}</div>` : ""}</div>
       <div class="detail-copy"><span class="eyebrow">${escapeHtml(product.brand || site.name)}</span>
         <h1>${escapeHtml(product.title)}</h1><p class="detail-price">${escapeHtml(productPrice(product, store))}</p>
         ${options ? `<form data-add-to-cart><label for="variant">${t.options}</label><select id="variant" name="variantId" required${soldOut ? " disabled" : ""}>${options}</select>
           <label for="quantity">${t.quantity}</label><input id="quantity" name="quantity" type="number" min="1" max="20" value="1" required>
           <button class="button" type="submit"${soldOut ? " disabled" : ""}>${soldOut ? t.outOfStock : t.addToCart}</button><p data-add-message role="status"></p></form>` : ""}
+        <div class="purchase-help"><a href="/pages/shipping">${t.shipping} ↗</a><a href="/policies/returns">${t.returns} ↗</a><a href="/pages/contact">${t.productQuestion} ↗</a></div>
         <div class="product-description">${descriptionHtml(product)}</div>
       </div>
     </div>
@@ -208,9 +211,9 @@ function cartPage(site, store) {
   const t = ui(store.locale);
   return page(site, store, t.cart, `<section class="shell inner-page"><a class="breadcrumb" href="/collections/all">${t.continueShopping}</a>
     <h1>${t.yourCart}</h1><div data-cart-items><p>${t.loadingCart}</p></div><p data-cart-total class="cart-total"></p>
-    <button class="button" type="button" data-start-checkout disabled>${t.checkout}</button>
+    <button class="button" type="button" data-start-checkout data-review-only="${Boolean(store.reviewOnly)}" disabled>${t.checkout}</button>
     <p data-checkout-error role="alert" tabindex="-1" hidden></p>
-    <p class="cart-note">${t.cartNote}</p></section>`);
+    <p class="cart-note">${store.reviewOnly ? t.previewCartNote : t.cartNote}</p></section>`);
 }
 
 function completePage(site, store) {
@@ -301,7 +304,12 @@ export default {
     const url = new URL(request.url);
     if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "POST") return new Response("Method not allowed", { status: 405 });
     if (url.pathname.startsWith("/assets/") || ["/styles.css", "/store.js", "/storefront-mark.svg", "/storefront-hero.avif"].includes(url.pathname)) return env.ASSETS.fetch(request);
+    if (env.CANONICAL_HOSTNAME && url.hostname.endsWith(".workers.dev") && url.hostname !== env.CANONICAL_HOSTNAME && ["GET", "HEAD"].includes(request.method)) {
+      url.hostname = env.CANONICAL_HOSTNAME;
+      return Response.redirect(url.href, 308);
+    }
     if (request.method === "POST") {
+      if (env.REAI_REVIEW_ONLY === "true") return json({ error: ui("nb").previewCheckout }, 403);
       if (url.pathname !== "/checkout/start") return json({ error: "Method not allowed" }, 405);
       if (request.headers.get("Origin") !== url.origin) return json({ error: "Invalid origin" }, 403);
       if (!request.headers.get("Content-Type")?.startsWith("application/json")) return json({ error: "Expected JSON" }, 415);
@@ -340,8 +348,9 @@ export default {
         }
       }
       const store = await delivery(client.storefront(context));
+      store.reviewOnly = env.REAI_REVIEW_ONLY === "true";
 
-      if (["/", "/catalog.json"].includes(url.pathname) || /^\/(collections|products)(\/|$)/.test(url.pathname)) {
+      if (["/", "/catalog.json", "/search"].includes(url.pathname) || /^\/(collections|products)(\/|$)/.test(url.pathname)) {
         const stockProducts = url.pathname.startsWith("/products/")
           ? store.products.filter((product) => product.handle === routeHandle(url.pathname, "products")) : store.products;
         const ids = (stockProducts || []).flatMap((product) => (product.variants || []).map((variant) => variant.id));
@@ -357,8 +366,9 @@ export default {
 
       if (url.pathname === "/catalog.json") return json({ products: store.products, currency: store.currency, locale: store.locale });
       if (url.pathname === "/") return home(site, store);
+      if (url.pathname === "/search") return catalogPage(site, store, url);
       if (/^\/collections\/?$/.test(url.pathname)) return collectionsPage(site, store);
-      if (/^\/collections\/all\/?$/.test(url.pathname)) return allProductsPage(site, store);
+      if (/^\/collections\/all\/?$/.test(url.pathname)) return catalogPage(site, store, url);
       const information = informationPage(site, store, url.pathname.replace(/\/$/, ""));
       if (information) return information;
       if (url.pathname === "/cart") return cartPage(site, store);
@@ -366,7 +376,7 @@ export default {
       const collectionHandle = routeHandle(url.pathname, "collections");
       if (collectionHandle !== null) {
         const collection = store.collections?.find((entry) => entry.handle === collectionHandle);
-        if (collection) return collectionPage(site, store, collection);
+        if (collection) return catalogPage(site, store, url, collection);
       }
       const productHandle = routeHandle(url.pathname, "products");
       if (productHandle !== null) {

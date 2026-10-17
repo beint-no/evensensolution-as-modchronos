@@ -5,6 +5,7 @@
     "credentialBinding": "REAI_SITE_CREDENTIAL",
     "checks": [
       "check"
-    ]
+    ],
+    "aliasConfig": "wrangler.alias.jsonc"
   }
 ]
