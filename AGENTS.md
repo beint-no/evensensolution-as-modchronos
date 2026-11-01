@@ -44,21 +44,13 @@ interaction creates an order, payment, reservation or customer. The preview does
 not claim to validate an address or delivery quote. Both review addresses are noindex.
 Do not remove this guard or connect modchronos.com without merchant launch approval.
 
-## Manual PR previews
+## Manual GitHub Actions
 
-PR preview Actions are manual-only. When explicitly dispatched, they create a stable
-isolated Cloudflare Preview URL. Opening or updating a PR does not run Actions.
-`.github/workflows/preview.yml` builds without deployment
-credentials, then requests the trusted preview workflow in beint-no/reai-site-examples through signed
-GitHub Actions OIDC. Cloudflare credentials stay in the central deployment repository.
-The server maps this repository to its assigned Worker, verifies the current PR,
-and provides only a read-only PREVIEW Site credential where catalog access is needed.
-Previews are noindex and reject orders, payments and form submissions.
-Manually dispatch PR previews with a PR number to backfill an already-open PR.
-Register independently created repositories in the server's customer preview registry;
-new repositories created through the e-commerce module are recognized automatically.
-
-This customer repository is private at the owner’s request. Keep credentials and private data outside Git history. Preview publishing runs in the reviewed default-branch storefront-preview.yml workflow in beint-no/reai-site-examples; ReAI privately verifies the current PR and assigned Worker. Publishing credentials remain encrypted Actions secrets in the controller repository.
+Checks, deployment and PR previews run only when explicitly dispatched. Pushes,
+pull requests and merges do not start workflows. Use the repository's local check,
+deployment and preview commands for normal work. A manual PR preview must be
+dispatched again after changes, and after closing a PR to remove it. Preview
+credentials stay in the trusted controller; previews remain read-only and noindex.
 
 ## Direct Cloudflare commands
 
@@ -77,7 +69,7 @@ npm run preview:remove -- design
 Deployment and preview creation run the relevant existing checks. --dry-run builds
 without publishing. Multi-site repositories require a site name; available names
 are in tools/worker-sites.json. Previews use a separate local- namespace, block
-writes and carry noindex. Removing one leaves automatic PR previews intact.
+writes and carry noindex. Removing one leaves manually dispatched PR previews intact.
 
 Catalog previews additionally need a PREVIEW Site credential with only site:read,
 commerce:catalog:read and commerce:availability:read. Set
