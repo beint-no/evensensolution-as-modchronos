@@ -2,7 +2,7 @@
   "name": "modchronos",
   "account_id": "d7c5a90b75a693cc738d69f92808f451",
   "main": "./src/preview-alias.js",
-  "compatibility_date": "2026-09-28",
+  "compatibility_date": "2026-10-30",
   "workers_dev": true,
   "services": [
     {

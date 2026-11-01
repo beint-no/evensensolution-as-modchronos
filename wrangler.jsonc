@@ -1,7 +1,7 @@
 {
   "name": "reai-store-9bd71d09ac8b4b87b22a7719893327d5",
   "main": "./src/worker.js",
-  "compatibility_date": "2026-09-28",
+  "compatibility_date": "2026-10-30",
   "workers_dev": true,
   "preview_urls": true,
   "keep_vars": true,
