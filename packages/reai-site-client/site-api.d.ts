@@ -68,8 +68,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Quote a cart with current prices, stock and automatic offers
-         * @description Read-only. Uses checkout pricing and validates the complete requested stock demand. Applies the greatest eligible automatic product saving without stacking offers. Returns product totals before shipping. Creates no checkout, customer, order, payment, reservation or tracking event. Works with read-only preview credentials. Never accepts browser prices or discount amounts.
+         * Quote a cart with current prices and stock
+         * @description Read-only. Uses checkout pricing and validates the complete requested stock demand. Discounts require an explicit checkout code; no promotion is selected automatically. Returns product totals before shipping. Creates no checkout, customer, order, payment, reservation or tracking event. Works with read-only preview credentials. Never accepts browser prices or discount amounts.
          */
         post: operations["cartQuote"];
         delete?: never;
@@ -134,7 +134,7 @@ export interface paths {
         head?: never;
         /**
          * Save merchant checkout details
-         * @description Uses optimistic revision locking. Set complete for final contact/address validation. Empty discountCode removes a discount. Changing the address clears delivery selection. Locked payments cannot be edited.
+         * @description Uses optimistic revision locking. Set complete for final contact/address validation. Submit code to apply an explicitly entered discount or gift card; whitespace is ignored and a matching gift card takes precedence. Do not combine code with discountCode or giftCardCode. Omitted fields preserve applied codes. Empty discountCode or giftCardCode removes that specific code. Gift cards are prepaid tender, not a discount; applying a code does not spend its balance. Changing the address clears delivery selection. Locked payments cannot be edited.
          */
         patch: operations["update"];
         trace?: never;
@@ -587,6 +587,7 @@ export interface components {
             expiresAt: string;
             giftCardAmount: number;
             giftCardCode?: string | null;
+            giftCardRedemptionAvailable: boolean;
             id: string;
             lines: components["schemas"]["SiteCheckoutDetailsLineDto"][];
             locale: string;
@@ -650,6 +651,8 @@ export interface components {
              * @description Optional anonymous browser session UUID for aggregate store analytics. Omit on tracking opt-out; never send customer data.
              */
             analyticsSessionId?: string | null;
+            /** @description Optional plain-text message from the shopper, copied to the order comment. Blank means no comment. */
+            comment?: string | null;
             /** @description ISO 3166-1 alpha-2 delivery country within the selected market. Defaults to its first country when omitted. */
             countryCode?: string | null;
             lines: components["schemas"]["SiteCheckoutLineReq"][];
@@ -676,6 +679,7 @@ export interface components {
             vat: number;
         };
         SiteCheckoutUpdateReq: {
+            code?: string | null;
             complete?: boolean;
             customer?: components["schemas"]["SiteCheckoutCustomerDto"] | null;
             discountCode?: string | null;
@@ -759,6 +763,8 @@ export interface components {
             isDefault: boolean;
             locales: string[];
             name: string;
+            /** @description Configured delivery prices in this market currency for storefront shipping information. Excludes store pickup. Country restrictions and optional weight tiers apply; checkout remains authoritative. Free-shipping threshold uses product total after discounts, before gift-card payment. */
+            shippingMethods: components["schemas"]["SiteDeliveryShippingMethodRes"][];
         };
         SiteDeliveryOptionRes: {
             name: string;
@@ -817,6 +823,18 @@ export interface components {
             sourceLocale: string;
             /** @enum {string} */
             status: "enabled" | "disabled";
+        };
+        SiteDeliveryShippingMethodRes: {
+            amount: number;
+            amountAboveWeight?: number | null;
+            /** @description Configured carrier code for shipping information, such as bring, postnord or dhl; null for an unbranded method. */
+            carrier?: string | null;
+            countries: string[];
+            freeFromAmount?: number | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            weightThresholdGrams?: number | null;
         };
         SiteDeliveryVariantRes: {
             /** @description Attributes bound to this variant's selected option values. Combine with product-wide attributes when filtering; keep size, price and availability predicates on the same variant. */
