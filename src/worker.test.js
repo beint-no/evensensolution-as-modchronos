@@ -144,3 +144,33 @@ test("attaches a timeout AbortSignal and logs upstream errors on failure", async
   assert.equal(logged.length, 1);
   assert.equal(logged[0][0], "Storefront request failed");
 });
+
+test("serves Disallow: / robots.txt on workers.dev and in REAI_REVIEW_ONLY mode", async () => {
+  const aliasGet = await worker.fetch(
+    new Request("https://modchronos.respiro.workers.dev/robots.txt"),
+    { CANONICAL_HOSTNAME: "modchronos.respiro.workers.dev", REAI_REVIEW_ONLY: "true" },
+  );
+  assert.equal(aliasGet.status, 200);
+  assert.equal(aliasGet.headers.get("content-type"), "text/plain; charset=utf-8");
+  assert.equal(aliasGet.headers.get("x-robots-tag"), "noindex, nofollow");
+  assert.equal(aliasGet.headers.get("strict-transport-security"), "max-age=31536000");
+  assert.equal(await aliasGet.text(), "User-agent: *\nDisallow: /\n");
+
+  const primaryHead = await worker.fetch(
+    new Request("https://reai-store-9bd71d09ac8b4b87b22a7719893327d5.respiro.workers.dev/robots.txt", { method: "HEAD" }),
+    { CANONICAL_HOSTNAME: "modchronos.respiro.workers.dev", REAI_REVIEW_ONLY: "true" },
+  );
+  assert.equal(primaryHead.status, 200);
+  assert.equal(primaryHead.headers.get("content-type"), "text/plain; charset=utf-8");
+  assert.equal(primaryHead.headers.get("x-robots-tag"), "noindex, nofollow");
+  assert.equal(primaryHead.headers.get("strict-transport-security"), "max-age=31536000");
+  assert.equal(await primaryHead.text(), "");
+
+  const reviewCustomDomain = await worker.fetch(
+    new Request("https://modchronos.no/robots.txt"),
+    { REAI_REVIEW_ONLY: "true" },
+  );
+  assert.equal(reviewCustomDomain.status, 200);
+  assert.equal(reviewCustomDomain.headers.get("x-robots-tag"), "noindex, nofollow");
+  assert.equal(await reviewCustomDomain.text(), "User-agent: *\nDisallow: /\n");
+});
