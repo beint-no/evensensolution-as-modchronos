@@ -1,4 +1,5 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "modchronos",
   "account_id": "d7c5a90b75a693cc738d69f92808f451",
   "main": "./src/preview-alias.js",

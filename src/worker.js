@@ -314,13 +314,13 @@ export default {
     const url = new URL(request.url);
     const response = await handle(request, env, url);
     const headers = new Headers(response.headers);
-    if (url.hostname.endsWith(".workers.dev")) {
+    if (url.hostname.endsWith(".workers.dev") || env.REAI_REVIEW_ONLY === "true") {
       headers.set("x-robots-tag", "noindex, nofollow");
     }
     if (url.protocol === "https:") {
       headers.set("strict-transport-security", "max-age=31536000");
     }
-    return new Response(response.body, {
+    return new Response(request.method === "HEAD" ? null : response.body, {
       status: response.status,
       statusText: response.statusText,
       headers,
@@ -331,6 +331,16 @@ export default {
 async function handle(request, env, url) {
   if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "POST" && request.method !== "PATCH") return new Response("Method not allowed", { status: 405 });
   if (url.pathname.startsWith("/assets/") || ["/styles.css", "/store.js", "/cart-rules.js", "/checkout.js", "/checkout-preview.js", "/checkout.css", "/storefront-mark.svg", "/storefront-hero.avif"].includes(url.pathname)) return env.ASSETS.fetch(request);
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/robots.txt" && (url.hostname.endsWith(".workers.dev") || env.REAI_REVIEW_ONLY === "true")) {
+    return new Response("User-agent: *\nDisallow: /\n", {
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+        "x-robots-tag": "noindex, nofollow",
+      },
+    });
+  }
   if (env.CANONICAL_HOSTNAME && url.hostname.endsWith(".workers.dev") && url.hostname !== env.CANONICAL_HOSTNAME && ["GET", "HEAD"].includes(request.method)) {
     const destination = new URL(url.href);
     destination.hostname = env.CANONICAL_HOSTNAME;
