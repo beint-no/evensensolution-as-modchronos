@@ -1,8 +1,11 @@
 {
   "name": "reai-store-9bd71d09ac8b4b87b22a7719893327d5",
   "main": "./src/worker.js",
-  "compatibility_date": "2026-10-30",
+  "compatibility_date": "2026-11-18",
   "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
   "preview_urls": true,
   "keep_vars": true,
   "ratelimits": [{"name":"CHECKOUT_RATE_LIMIT","namespace_id":"225411","simple":{"limit":100,"period":60}}],

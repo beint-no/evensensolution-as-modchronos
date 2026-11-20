@@ -5,7 +5,7 @@ export async function merchantCheckout(request, env, client, site, readBody) {
   const api=url.pathname.match(/^\/reai\/checkout\/([a-f0-9]{32})(?:\/(delivery-options|prepare-payment|change-country|address-suggestions))?$/);
   const page=url.pathname==='/checkout'||url.pathname==='/checkout/complete';
   if(!api&&!page)return null;
-  const headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' https: data:; base-uri 'none'; form-action 'self'"};
+  const headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer','Permissions-Policy':'camera=(), microphone=(), geolocation=()','X-Robots-Tag':'noindex, nofollow','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' https: data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"};
   const reply=(body,status=200)=>Response.json(body,{status,headers});
   if(env.REAI_REVIEW_ONLY==='true'){
     if(api)return reply({error:'Bestilling og betaling er ikke aktivert i forhåndsvisningen.'},403);

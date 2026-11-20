@@ -2,8 +2,11 @@
   "name": "modchronos",
   "account_id": "d7c5a90b75a693cc738d69f92808f451",
   "main": "./src/preview-alias.js",
-  "compatibility_date": "2026-10-30",
+  "compatibility_date": "2026-11-18",
   "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
   "services": [
     {
       "binding": "STOREFRONT",
