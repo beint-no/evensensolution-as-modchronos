@@ -101,3 +101,46 @@ test("rejects cross-origin checkout before contacting ReAI", async (context) => 
   }), { REAI_API_BASE_URL: "https://app.example.test", REAI_SITE_CREDENTIAL: "private-token" });
   assert.equal(response.status, 403);
 });
+
+test("sets hardened security headers, HSTS on HTTPS, and noindex on workers.dev", async () => {
+  const env = {
+    ASSETS: { fetch: async () => new Response("body {}", { headers: { "content-type": "text/css" } }) },
+  };
+  const pageResponse = await worker.fetch(new Request("https://modchronos.respiro.workers.dev/"), env);
+  assert.equal(pageResponse.status, 503);
+  assert.equal(pageResponse.headers.get("strict-transport-security"), "max-age=31536000");
+  assert.equal(pageResponse.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
+  assert.equal(pageResponse.headers.get("permissions-policy"), "camera=(), microphone=(), geolocation=()");
+  assert.equal(pageResponse.headers.get("x-robots-tag"), "noindex, nofollow");
+  const csp = pageResponse.headers.get("content-security-policy");
+  assert.match(csp, /frame-ancestors 'none'/);
+  assert.match(csp, /img-src 'self' https: data:/);
+  assert.doesNotMatch(csp, /\bhttp:/);
+
+  const assetResponse = await worker.fetch(new Request("https://modchronos.respiro.workers.dev/styles.css"), env);
+  assert.equal(assetResponse.status, 200);
+  assert.equal(assetResponse.headers.get("strict-transport-security"), "max-age=31536000");
+  assert.equal(assetResponse.headers.get("x-robots-tag"), "noindex, nofollow");
+
+  const localHttp = await worker.fetch(new Request("http://localhost:8787/styles.css"), env);
+  assert.equal(localHttp.headers.get("strict-transport-security"), null);
+  assert.equal(localHttp.headers.get("x-robots-tag"), null);
+});
+
+test("attaches a timeout AbortSignal and logs upstream errors on failure", async (context) => {
+  let receivedSignal;
+  const logged = [];
+  context.mock.method(console, "error", (...args) => logged.push(args));
+  context.mock.method(globalThis, "fetch", async (_input, init) => {
+    receivedSignal = init?.signal;
+    throw new Error("upstream timeout");
+  });
+  const response = await worker.fetch(
+    new Request("https://modchronos.respiro.workers.dev/"),
+    { REAI_API_BASE_URL: "https://app.example.test", REAI_SITE_CREDENTIAL: "private-token" },
+  );
+  assert.equal(response.status, 502);
+  assert.ok(receivedSignal instanceof AbortSignal);
+  assert.equal(logged.length, 1);
+  assert.equal(logged[0][0], "Storefront request failed");
+});

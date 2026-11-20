@@ -14,7 +14,7 @@
     "preview:remove": "node tools/worker.mjs remove"
   },
   "devDependencies": {
-    "wrangler": "4.156.0"
+    "wrangler": "4.165.0"
   },
   "overrides": {
     "sharp": "0.35.5"

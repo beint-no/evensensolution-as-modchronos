@@ -11,7 +11,9 @@ const HTML_HEADERS = {
   "content-type": "text/html; charset=utf-8",
   "cache-control": "no-store",
   "x-content-type-options": "nosniff",
-  "content-security-policy": "default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' https: http: data:; base-uri 'none'; form-action 'self'",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "camera=(), microphone=(), geolocation=()",
+  "content-security-policy": "default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' https: data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
 };
 
 function escapeHtml(value) {
@@ -28,7 +30,7 @@ function descriptionHtml(item) {
 function imageUrl(value) {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
+    return url.protocol === "https:" ? url.href : null;
   } catch {
     return null;
   }
@@ -310,106 +312,125 @@ function routeHandle(pathname, segment) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "POST" && request.method !== "PATCH") return new Response("Method not allowed", { status: 405 });
-    if (url.pathname.startsWith("/assets/") || ["/styles.css", "/store.js", "/cart-rules.js", "/checkout.js", "/checkout-preview.js", "/checkout.css", "/storefront-mark.svg", "/storefront-hero.avif"].includes(url.pathname)) return env.ASSETS.fetch(request);
-    if (env.CANONICAL_HOSTNAME && url.hostname.endsWith(".workers.dev") && url.hostname !== env.CANONICAL_HOSTNAME && ["GET", "HEAD"].includes(request.method)) {
-      url.hostname = env.CANONICAL_HOSTNAME;
-      return Response.redirect(url.href, 308);
+    const response = await handle(request, env, url);
+    const headers = new Headers(response.headers);
+    if (url.hostname.endsWith(".workers.dev")) {
+      headers.set("x-robots-tag", "noindex, nofollow");
     }
-    if (request.method === "POST" || request.method === "PATCH") {
-      if (env.REAI_REVIEW_ONLY === "true" && !["/cart/quote", "/checkout/start"].includes(url.pathname)) return json({ error: ui("nb").previewCheckout }, 403);
-      if (!["/checkout/start", "/cart/quote"].includes(url.pathname) && !url.pathname.startsWith("/reai/checkout/")) return json({ error: "Method not allowed" }, 405);
-      if (request.headers.get("Origin") !== url.origin) return json({ error: "Invalid origin" }, 403);
-      if (!request.headers.get("Content-Type")?.startsWith("application/json")) return json({ error: "Expected JSON" }, 415);
-      if (env.CHECKOUT_RATE_LIMIT && !(await env.CHECKOUT_RATE_LIMIT.limit({key:`${url.host}:${request.headers.get("CF-Connecting-IP")||"local"}`})).success) return json({error:ui("nb").tooManyRequests},429);
+    if (url.protocol === "https:") {
+      headers.set("strict-transport-security", "max-age=31536000");
     }
-
-    if (!env.REAI_API_BASE_URL || !env.REAI_SITE_CREDENTIAL) {
-      const t = ui("en");
-      return page(null, { locale: "en" }, t.comingSoon, `<section class="shell inner-page"><span class="eyebrow">${t.comingSoon}</span><h1>${t.setupHeading}</h1><p class="lead">${t.setupText}</p></section>`, 503);
-    }
-
-    try {
-      const baseUrl = new URL(env.REAI_API_BASE_URL);
-      if (!(["http:", "https:"].includes(baseUrl.protocol))) throw new Error("Invalid API URL");
-      const client = new ReaiSiteClient({ baseUrl: baseUrl.href, token: env.REAI_SITE_CREDENTIAL });
-      const site = await delivery(client.site());
-      const merchant = await merchantCheckout(request, env, client, site, boundedJson);
-      if (merchant) return merchant;
-      const market = site.markets?.find((entry) => entry.isDefault) || site.markets?.[0];
-      if (!market) throw new Error("No Site market configured");
-      const context = { market: market.handle, locale: market.defaultLocale };
-      if (["/checkout/start", "/cart/quote"].includes(url.pathname)) {
-        if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-        const body = await boundedJson(request);
-        let lines = checkoutLines(body);
-        if (!lines) return json({ error: "Invalid cart" }, 400);
-        if (env.WATCH_CASE_PROMOTION === "true") {
-          const catalog = await delivery(client.storefront(context));
-          try { lines = withWatchCase(lines, catalog); } catch (error) { return json({error:error.message === "watch_limit" ? ui(context.locale).cartLimit : ui(context.locale).caseUnavailable},400); }
-          if (!lines.length) return json({ error: ui(context.locale).emptyCart }, 400);
-        }
-        if (url.pathname === "/cart/quote") {
-          const quote = await client.quoteCart({lines},context);
-          return new Response(quote.response.body,{status:quote.response.status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
-        }
-        if (env.REAI_REVIEW_ONLY === "true") return json({checkoutUrl:`${url.origin}/checkout`});
-        try {
-          const session = await delivery(client.createCheckoutSession(
-            { lines, returnUrl: `${url.origin}/checkout/complete`, ...(env.MERCHANT_CHECKOUT_PATH ? {merchantCheckoutUrl: `${url.origin}${env.MERCHANT_CHECKOUT_PATH}`} : {}) }, context,
-            request.headers.get("Idempotency-Key") || crypto.randomUUID(),
-          ));
-          return json({ checkoutUrl: session.checkoutUrl });
-        } catch (error) {
-          if (error.response) {
-            const details = await error.response.json().catch(() => ({}));
-            return json({ error: details.detail || "Checkout could not be started", code: details.code, stockIssues: details.stockIssues }, error.status);
-          }
-          return json({ error: "Checkout is temporarily unavailable" }, 502);
-        }
-      }
-      const store = await delivery(client.storefront(context));
-      store.reviewOnly = env.REAI_REVIEW_ONLY === "true";
-
-      if (["/", "/catalog.json", "/search"].includes(url.pathname) || /^\/(collections|products)(\/|$)/.test(url.pathname)) {
-        const stockProducts = url.pathname.startsWith("/products/")
-          ? store.products.filter((product) => product.handle === routeHandle(url.pathname, "products")) : store.products;
-        const ids = (stockProducts || []).flatMap((product) => (product.variants || []).map((variant) => variant.id));
-        const availability = new Map();
-        for (let start = 0; start < ids.length; start += 100) {
-          const batch = await delivery(client.availabilities(ids.slice(start, start + 100), context));
-          batch.variants.forEach((variant) => availability.set(variant.variantId, variant.status));
-        }
-        stockProducts.forEach((product) => product.variants.forEach((variant) => {
-          variant.outOfStock = availability.get(variant.id) === "OUT_OF_STOCK";
-        }));
-      }
-
-      if (url.pathname === "/catalog.json") return json({ products: store.products, currency: store.currency, locale: store.locale, watchProductIds: watchProductIds(store) });
-      if (url.pathname === "/") return home(site, store);
-      if (url.pathname === "/search") return catalogPage(site, store, url);
-      if (/^\/collections\/?$/.test(url.pathname)) return collectionsPage(site, store);
-      if (/^\/collections\/all\/?$/.test(url.pathname)) return catalogPage(site, store, url);
-      const information = informationPage(site, store, url.pathname.replace(/\/$/, ""));
-      if (information) return information;
-      if (url.pathname === "/cart") return cartPage(site, store);
-      if (url.pathname === "/checkout/complete") return completePage(site, store);
-      const collectionHandle = routeHandle(url.pathname, "collections");
-      if (collectionHandle !== null) {
-        const collection = store.collections?.find((entry) => entry.handle === collectionHandle);
-        if (collection) return catalogPage(site, store, url, collection);
-      }
-      const productHandle = routeHandle(url.pathname, "products");
-      if (productHandle !== null) {
-        const product = store.products?.find((entry) => entry.handle === productHandle);
-        if (product) return productPage(site, store, product);
-      }
-      const t = ui(store.locale);
-      return page(site, store, t.notFound, `<section class="shell inner-page"><span class="eyebrow">404</span><h1>${t.notFoundHeading}</h1><a class="button" href="/">${t.backToStore}</a></section>`, 404);
-    } catch {
-      if (["/checkout/start", "/cart/quote"].includes(url.pathname)) return json({ error: "Checkout is temporarily unavailable" }, 502);
-      const t = ui("en");
-      return page(null, { locale: "en" }, t.temporarilyUnavailable, `<section class="shell inner-page"><span class="eyebrow">${t.tryAgain}</span><h1>${t.unavailableHeading}</h1><p class="lead">${t.unavailableText}</p></section>`, 502);
-    }
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
   },
 };
+
+async function handle(request, env, url) {
+  if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "POST" && request.method !== "PATCH") return new Response("Method not allowed", { status: 405 });
+  if (url.pathname.startsWith("/assets/") || ["/styles.css", "/store.js", "/cart-rules.js", "/checkout.js", "/checkout-preview.js", "/checkout.css", "/storefront-mark.svg", "/storefront-hero.avif"].includes(url.pathname)) return env.ASSETS.fetch(request);
+  if (env.CANONICAL_HOSTNAME && url.hostname.endsWith(".workers.dev") && url.hostname !== env.CANONICAL_HOSTNAME && ["GET", "HEAD"].includes(request.method)) {
+    const destination = new URL(url.href);
+    destination.hostname = env.CANONICAL_HOSTNAME;
+    return Response.redirect(destination.href, 308);
+  }
+  if (request.method === "POST" || request.method === "PATCH") {
+    if (env.REAI_REVIEW_ONLY === "true" && !["/cart/quote", "/checkout/start"].includes(url.pathname)) return json({ error: ui("nb").previewCheckout }, 403);
+    if (!["/checkout/start", "/cart/quote"].includes(url.pathname) && !url.pathname.startsWith("/reai/checkout/")) return json({ error: "Method not allowed" }, 405);
+    if (request.headers.get("Origin") !== url.origin) return json({ error: "Invalid origin" }, 403);
+    if (!request.headers.get("Content-Type")?.startsWith("application/json")) return json({ error: "Expected JSON" }, 415);
+    if (env.CHECKOUT_RATE_LIMIT && !(await env.CHECKOUT_RATE_LIMIT.limit({key:`${url.host}:${request.headers.get("CF-Connecting-IP")||"local"}`})).success) return json({error:ui("nb").tooManyRequests},429);
+  }
+
+  if (!env.REAI_API_BASE_URL || !env.REAI_SITE_CREDENTIAL) {
+    const t = ui("en");
+    return page(null, { locale: "en" }, t.comingSoon, `<section class="shell inner-page"><span class="eyebrow">${t.comingSoon}</span><h1>${t.setupHeading}</h1><p class="lead">${t.setupText}</p></section>`, 503);
+  }
+
+  try {
+    const baseUrl = new URL(env.REAI_API_BASE_URL);
+    if (!(["http:", "https:"].includes(baseUrl.protocol))) throw new Error("Invalid API URL");
+    const client = new ReaiSiteClient({ baseUrl: baseUrl.href, token: env.REAI_SITE_CREDENTIAL });
+    const site = await delivery(client.site());
+    const merchant = await merchantCheckout(request, env, client, site, boundedJson);
+    if (merchant) return merchant;
+    const market = site.markets?.find((entry) => entry.isDefault) || site.markets?.[0];
+    if (!market) throw new Error("No Site market configured");
+    const context = { market: market.handle, locale: market.defaultLocale };
+    if (["/checkout/start", "/cart/quote"].includes(url.pathname)) {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      const body = await boundedJson(request);
+      let lines = checkoutLines(body);
+      if (!lines) return json({ error: "Invalid cart" }, 400);
+      if (env.WATCH_CASE_PROMOTION === "true") {
+        const catalog = await delivery(client.storefront(context));
+        try { lines = withWatchCase(lines, catalog); } catch (error) { return json({error:error.message === "watch_limit" ? ui(context.locale).cartLimit : ui(context.locale).caseUnavailable},400); }
+        if (!lines.length) return json({ error: ui(context.locale).emptyCart }, 400);
+      }
+      if (url.pathname === "/cart/quote") {
+        const quote = await client.quoteCart({lines},context);
+        return new Response(quote.response.body,{status:quote.response.status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
+      }
+      if (env.REAI_REVIEW_ONLY === "true") return json({checkoutUrl:`${url.origin}/checkout`});
+      try {
+        const session = await delivery(client.createCheckoutSession(
+          { lines, returnUrl: `${url.origin}/checkout/complete`, ...(env.MERCHANT_CHECKOUT_PATH ? {merchantCheckoutUrl: `${url.origin}${env.MERCHANT_CHECKOUT_PATH}`} : {}) }, context,
+          request.headers.get("Idempotency-Key") || crypto.randomUUID(),
+        ));
+        return json({ checkoutUrl: session.checkoutUrl });
+      } catch (error) {
+        if (error.response) {
+          const details = await error.response.json().catch(() => ({}));
+          return json({ error: details.detail || "Checkout could not be started", code: details.code, stockIssues: details.stockIssues }, error.status);
+        }
+        console.error("Checkout session creation failed", error);
+        return json({ error: "Checkout is temporarily unavailable" }, 502);
+      }
+    }
+    const store = await delivery(client.storefront(context));
+    store.reviewOnly = env.REAI_REVIEW_ONLY === "true";
+
+    if (["/", "/catalog.json", "/search"].includes(url.pathname) || /^\/(collections|products)(\/|$)/.test(url.pathname)) {
+      const stockProducts = url.pathname.startsWith("/products/")
+        ? store.products.filter((product) => product.handle === routeHandle(url.pathname, "products")) : store.products;
+      const ids = (stockProducts || []).flatMap((product) => (product.variants || []).map((variant) => variant.id));
+      const availability = new Map();
+      for (let start = 0; start < ids.length; start += 100) {
+        const batch = await delivery(client.availabilities(ids.slice(start, start + 100), context));
+        batch.variants.forEach((variant) => availability.set(variant.variantId, variant.status));
+      }
+      stockProducts.forEach((product) => product.variants.forEach((variant) => {
+        variant.outOfStock = availability.get(variant.id) === "OUT_OF_STOCK";
+      }));
+    }
+
+    if (url.pathname === "/catalog.json") return json({ products: store.products, currency: store.currency, locale: store.locale, watchProductIds: watchProductIds(store) });
+    if (url.pathname === "/") return home(site, store);
+    if (url.pathname === "/search") return catalogPage(site, store, url);
+    if (/^\/collections\/?$/.test(url.pathname)) return collectionsPage(site, store);
+    if (/^\/collections\/all\/?$/.test(url.pathname)) return catalogPage(site, store, url);
+    const information = informationPage(site, store, url.pathname.replace(/\/$/, ""));
+    if (information) return information;
+    if (url.pathname === "/cart") return cartPage(site, store);
+    if (url.pathname === "/checkout/complete") return completePage(site, store);
+    const collectionHandle = routeHandle(url.pathname, "collections");
+    if (collectionHandle !== null) {
+      const collection = store.collections?.find((entry) => entry.handle === collectionHandle);
+      if (collection) return catalogPage(site, store, url, collection);
+    }
+    const productHandle = routeHandle(url.pathname, "products");
+    if (productHandle !== null) {
+      const product = store.products?.find((entry) => entry.handle === productHandle);
+      if (product) return productPage(site, store, product);
+    }
+    const t = ui(store.locale);
+    return page(site, store, t.notFound, `<section class="shell inner-page"><span class="eyebrow">404</span><h1>${t.notFoundHeading}</h1><a class="button" href="/">${t.backToStore}</a></section>`, 404);
+  } catch (error) {
+    console.error("Storefront request failed", error);
+    if (["/checkout/start", "/cart/quote"].includes(url.pathname)) return json({ error: "Checkout is temporarily unavailable" }, 502);
+    const t = ui("en");
+    return page(null, { locale: "en" }, t.temporarilyUnavailable, `<section class="shell inner-page"><span class="eyebrow">${t.tryAgain}</span><h1>${t.unavailableHeading}</h1><p class="lead">${t.unavailableText}</p></section>`, 502);
+  }
+}
