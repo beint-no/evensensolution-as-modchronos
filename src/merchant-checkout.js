@@ -10,7 +10,7 @@ export async function merchantCheckout(request, env, client, site, readBody) {
   if(env.REAI_REVIEW_ONLY==='true'){
     if(api)return reply({error:'Bestilling og betaling er ikke aktivert i forhåndsvisningen.'},403);
     if(!['GET','HEAD'].includes(request.method))return reply({error:'Method not allowed'},405);
-    const market=site.markets.find(m=>m.isDefault)||site.markets[0];
+    const market=site.markets.find(m=>m.default)||site.markets[0];
     const state={reviewOnly:true,id:null,locale:market.defaultLocale,currency:market.currency,lines:[],destinations:(market.countries.length?market.countries:['NO']).map(countryCode=>({countryCode})),customer:{countryCode:market.countries[0]||'NO'},editable:true,phase:'details',subtotal:0,total:0,vat:0,discountGross:0,discountCode:null,shippingGross:null};
     return new Response(request.method==='HEAD'?null:renderCheckoutPage(state),{headers:{...headers,'Content-Type':'text/html; charset=utf-8'}});
   }

@@ -4,7 +4,7 @@ import worker from "./worker.js";
 
 const site = {
   name: "Sample <Shop>",
-  markets: [{ handle: "default", defaultLocale: "en", isDefault: true }],
+  markets: [{ handle: "default", defaultLocale: "en", default: true }],
 };
 const store = {
   locale: "en",

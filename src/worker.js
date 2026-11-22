@@ -366,7 +366,7 @@ async function handle(request, env, url) {
     const site = await delivery(client.site());
     const merchant = await merchantCheckout(request, env, client, site, boundedJson);
     if (merchant) return merchant;
-    const market = site.markets?.find((entry) => entry.isDefault) || site.markets?.[0];
+    const market = site.markets?.find((entry) => entry.default) || site.markets?.[0];
     if (!market) throw new Error("No Site market configured");
     const context = { market: market.handle, locale: market.defaultLocale };
     if (["/checkout/start", "/cart/quote"].includes(url.pathname)) {
