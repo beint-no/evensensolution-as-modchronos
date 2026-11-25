@@ -89,6 +89,7 @@ test("creates an English merchant checkout session without exposing the Site cre
   assert.ok(calls[1].options.headers.get("Idempotency-Key"));
   assert.deepEqual(JSON.parse(calls[1].options.body), {
     lines: [{ variantId: "00000000-0000-4000-8000-000000000001", quantity: 2 }],
+    countryCode: "NO",
     returnUrl: "https://modchronos.com/en/checkout/complete",
     merchantCheckoutUrl: "https://modchronos.com/en/checkout",
   });
