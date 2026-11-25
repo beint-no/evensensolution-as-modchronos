@@ -213,3 +213,60 @@ test("accepts payment returns from ReAI while keeping the checkout proxy private
   const proxy = await worker.fetch(new Request("https://modchronos.com/en/reai/checkout/" + id, { headers }), env);
   assert.equal(proxy.status, 403);
 });
+
+test("uses edge cache with ETag revalidation and keeps cart copy merchant-branded", async (context) => {
+  const cacheMap = new Map();
+  const originalCaches = globalThis.caches;
+  globalThis.caches = {
+    default: {
+      async match(req) {
+        const stored = cacheMap.get(req.url);
+        return stored ? stored.clone() : undefined;
+      },
+      async put(req, res) {
+        cacheMap.set(req.url, res.clone());
+      },
+    },
+  };
+  try {
+    const calls = [];
+    context.mock.method(globalThis, "fetch", async (input, options) => {
+      calls.push({ url: String(input), ifNoneMatch: options?.headers?.get("If-None-Match") });
+      if (String(input).endsWith("/site/v1/site")) return Response.json(site);
+      if (String(input).includes("/commerce/availability?")) return Response.json({ variants: [{ variantId: store.products[0].variants[0].id, status: "AVAILABLE" }] });
+      if (options?.headers?.get("If-None-Match") === '"v1"') return new Response(null, { status: 304 });
+      return Response.json(store, { headers: { ETag: '"v1"' } });
+    });
+    const env = { REAI_API_BASE_URL: "https://app.example.test", REAI_SITE_CREDENTIAL: "private-token" };
+    const waitPromises = [];
+    const ctx = { waitUntil(promise) { waitPromises.push(promise); } };
+
+    const first = await worker.fetch(new Request("https://modchronos.com/"), env, ctx);
+    assert.equal(first.status, 200);
+    assert.match(first.headers.get("cache-control"), /public, max-age=60/);
+    assert.equal(calls.length, 3);
+
+    const second = await worker.fetch(new Request("https://modchronos.com/"), env, ctx);
+    assert.equal(second.status, 200);
+    assert.equal(calls.length, 3);
+
+    // Expire storefront entry into stale-while-revalidate window to verify ETag revalidation.
+    const sfKey = [...cacheMap.keys()].find((k) => k.includes("storefront%3Av1"));
+    const staleHeaders = new Headers(cacheMap.get(sfKey).headers);
+    staleHeaders.set("X-ReAI-Cached-At", String(Date.now() - 120_000));
+    cacheMap.set(sfKey, new Response(JSON.stringify(store), { headers: staleHeaders }));
+
+    const third = await worker.fetch(new Request("https://modchronos.com/"), env, ctx);
+    assert.equal(third.status, 200);
+    await Promise.all(waitPromises);
+    assert.equal(calls.at(-1).ifNoneMatch, '"v1"');
+
+    const cartRes = await worker.fetch(new Request("https://modchronos.com/cart"), env, ctx);
+    const cartHtml = await cartRes.text();
+    assert.equal(cartRes.status, 200);
+    assert.doesNotMatch(cartHtml, /ReAI kontrollerer/);
+    assert.match(cartHtml, /href="https:\/\/reai\.no" rel="external">Drevet av ReAI<\/a>/);
+  } finally {
+    globalThis.caches = originalCaches;
+  }
+});
