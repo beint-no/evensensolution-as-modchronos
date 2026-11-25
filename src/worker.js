@@ -401,9 +401,11 @@ async function handle(request, env, url, reviewOnly) {
         return new Response(quote.response.body,{status:quote.response.status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
       }
       if (reviewOnly) return json({checkoutUrl:`${url.origin}${pathPrefix}/checkout`});
+      const countries = market.countries || [];
+      const countryCode = countries.includes("NO") ? "NO" : countries[0];
       try {
         const session = await delivery(client.createCheckoutSession(
-          { lines, returnUrl: `${url.origin}${pathPrefix}/checkout/complete`, merchantCheckoutUrl: `${url.origin}${pathPrefix}/checkout` }, context,
+          { lines, countryCode, returnUrl: `${url.origin}${pathPrefix}/checkout/complete`, merchantCheckoutUrl: `${url.origin}${pathPrefix}/checkout` }, context,
           request.headers.get("Idempotency-Key") || crypto.randomUUID(),
         ));
         return json({ checkoutUrl: session.checkoutUrl });
