@@ -1,11 +1,14 @@
 import { ReaiSiteClient } from "../packages/reai-site-client/client.mjs";
 import { brandContent } from "./brand-content.js";
 import { sourcePages } from "./source-pages.js";
+import { englishPages } from "./english-pages.js";
 import { aboutHtml } from "./about-content.js";
 import { storeContent } from "./store-content.js";
 import { language, ui } from "./ui-copy.js";
 import { merchantCheckout } from "./merchant-checkout.js";
 import { withWatchCase, watchProductIds } from "../public/cart-rules.js";
+
+const LIVE_HOSTNAME = "modchronos.com";
 
 const HTML_HEADERS = {
   "content-type": "text/html; charset=utf-8",
@@ -66,8 +69,10 @@ function picture(product, className = "", image = product.images?.[0], sizes = "
   return `<img class="${className}" src="${escapeHtml(src)}"${dimensions}${responsive} alt="${escapeHtml(image.alt || product.title)}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">`;
 }
 
+const shopPath = (store, path) => `${store?.pathPrefix || ""}${path}`;
+
 function card(product, store) {
-  const href = `/products/${encodeURIComponent(product.handle)}`;
+  const href = shopPath(store, `/products/${encodeURIComponent(product.handle)}`);
   const t = ui(store.locale);
   const soldOut = product.variants?.length && product.variants.every((variant) => variant.outOfStock);
   return `<article class="product-card">
@@ -86,16 +91,18 @@ function featuredProducts(store) {
 }
 
 function page(site, store, title, body, status = 200) {
+  const path = (value) => shopPath(store, value);
   const t = ui(store?.locale);
-  const content = brandContent;
+  const content = brandContent[language(store?.locale)];
   const name = site?.name || "Storefront";
   const legalName = storeContent.legalName || name;
+  const alternate = store?.alternate;
   const footerCollections = (store?.collections || []).slice(0, 3).map((collection) =>
-    `<a href="/collections/${encodeURIComponent(collection.handle)}">${escapeHtml(collection.title)}</a>`,
+    `<a href="${shopPath(store, `/collections/${encodeURIComponent(collection.handle)}`)}">${escapeHtml(collection.title)}</a>`,
   ).join("");
   const contact = storeContent.contactEmail
     ? `<a href="mailto:${escapeHtml(storeContent.contactEmail)}">${escapeHtml(storeContent.contactEmail)}</a>`
-    : `<a href="/pages/contact">${t.contact}</a>`;
+    : `<a href="${path("/pages/contact")}">${t.contact}</a>`;
   return new Response(`<!doctype html>
 <html lang="${escapeHtml(store?.locale || "nb")}">
 <head>
@@ -103,68 +110,70 @@ function page(site, store, title, body, status = 200) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="${t.meta} ${escapeHtml(name)}.">
   <meta name="theme-color" content="#111111">
-  <meta name="robots" content="noindex, nofollow">
   <title>${escapeHtml(title)} · ${escapeHtml(name)}</title>
   <link rel="icon" href="/assets/modchronos-logo.jpg" type="image/jpeg">
-  <link rel="stylesheet" href="/styles.css?v=20261017-case">
+  <link rel="stylesheet" href="/styles.css?v=language">
 </head>
-<body>
+<body data-path-prefix="${store?.pathPrefix || ""}">
   <a class="skip-link" href="#main">${t.skip}</a>
   <div class="announcement">${t.brandStrip}</div>
   <header class="site-header shell">
-    <a class="wordmark" href="/" aria-label="ModChronos"><img src="/assets/modchronos-logo.jpg" alt="ModChronos" width="220" height="48"></a>
-    <nav class="desktop-nav" aria-label="${t.shop}"><a href="/collections/all">${t.watches}</a><a href="/collections">${t.collections}</a><a href="/pages/about">${t.about}</a><a href="/pages/contact">${t.contact}</a></nav>
-    <div class="header-actions"><a href="/search" class="search-link">${t.search}</a><a class="cart-link" href="/cart">${t.cart} (<span data-cart-count>0</span>)</a>
-    <details class="mobile-menu"><summary>${t.menu}</summary><nav aria-label="${t.menu}"><a href="/collections/all">${t.watches}</a><a href="/collections">${t.collections}</a><a href="/pages/about">${t.about}</a><a href="/pages/contact">${t.contact}</a><a href="/search">${t.search}</a></nav></details></div>
+    <a class="wordmark" href="${path("/")}" aria-label="ModChronos"><img src="/assets/modchronos-logo.jpg" alt="ModChronos" width="220" height="48"></a>
+    <nav class="desktop-nav" aria-label="${t.shop}"><a href="${path("/collections/all")}">${t.watches}</a><a href="${path("/collections")}">${t.collections}</a><a href="${path("/pages/about")}">${t.about}</a><a href="${path("/pages/contact")}">${t.contact}</a></nav>
+    <div class="header-actions">${alternate ? `<a class="language-link" href="${alternate.href}" lang="${alternate.lang}" hreflang="${alternate.lang}" aria-label="${alternate.label}">${alternate.shortLabel}</a>` : ""}<a href="${path("/search")}" class="search-link">${t.search}</a><a class="cart-link" href="${path("/cart")}">${t.cart} (<span data-cart-count>0</span>)</a>
+    <details class="mobile-menu"><summary>${t.menu}</summary><nav aria-label="${t.menu}"><a href="${path("/collections/all")}">${t.watches}</a><a href="${path("/collections")}">${t.collections}</a><a href="${path("/pages/about")}">${t.about}</a><a href="${path("/pages/contact")}">${t.contact}</a><a href="${path("/search")}">${t.search}</a></nav></details></div>
   </header>
   <main id="main">${body}</main>
   <footer class="site-footer"><div class="shell footer-grid">
-    <div class="footer-brand"><a class="wordmark" href="/"><img src="/assets/modchronos-logo.jpg" alt="ModChronos" width="220" height="48"></a><p>${escapeHtml(content.aboutIntro)}</p></div>
-    <div><h2>${t.shop}</h2><a href="/collections/all">${t.allProducts}</a><a href="/collections">${t.collections}</a>${footerCollections}<a href="/cart">${t.yourCart}</a></div>
-    <div><h2>${t.help}</h2><a href="/pages/contact">${t.contact}</a><a href="/pages/shipping">${t.shipping}</a><a href="/policies/returns">${t.returns}</a></div>
-    <div><h2>${t.about}</h2><a href="/pages/about">${t.ourStory}</a>${contact}<a href="/policies/privacy">${t.privacy}</a><a href="/policies/terms">${t.terms}</a></div>
-  </div><div class="shell footer-bottom"><span>© ${new Date().getUTCFullYear()} ${escapeHtml(legalName)}${storeContent.organizationNumber ? ` · ${escapeHtml(storeContent.organizationNumber)}` : ""}</span><span>${t.poweredBy} <a href="https://reai.no" rel="external">ReAI</a></span></div></footer>
+    <div class="footer-brand"><a class="wordmark" href="${path("/")}"><img src="/assets/modchronos-logo.jpg" alt="ModChronos" width="220" height="48"></a><p>${escapeHtml(content.aboutIntro)}</p></div>
+    <div><h2>${t.shop}</h2><a href="${path("/collections/all")}">${t.allProducts}</a><a href="${path("/collections")}">${t.collections}</a>${footerCollections}<a href="${path("/cart")}">${t.yourCart}</a></div>
+    <div><h2>${t.help}</h2><a href="${path("/pages/contact")}">${t.contact}</a><a href="${path("/pages/shipping")}">${t.shipping}</a><a href="${path("/policies/returns")}">${t.returns}</a></div>
+    <div><h2>${t.about}</h2><a href="${path("/pages/about")}">${t.ourStory}</a>${contact}<a href="${path("/policies/privacy")}">${t.privacy}</a><a href="${path("/policies/terms")}">${t.terms}</a></div>
+  </div><div class="shell footer-bottom"><span>© ${new Date().getUTCFullYear()} ${escapeHtml(legalName)}${storeContent.organizationNumber ? ` · ${escapeHtml(storeContent.organizationNumber)}` : ""}</span><a class="powered-by" href="https://reai.no" rel="external">${t.poweredBy} ReAI</a></div></footer>
   <dialog class="cart-drawer" data-cart-drawer aria-labelledby="cart-drawer-title">
     <header><h2 id="cart-drawer-title">${t.yourCart}</h2><button type="button" data-close-cart>${t.close}</button></header>
     <div data-cart-items><p>${t.loadingCart}</p></div><p data-cart-total class="cart-total"></p>
-    <a class="button" href="/cart">${t.viewCart}</a>
+    <a class="button" href="${path("/cart")}">${t.viewCart}</a>
     <p class="cart-note">${store?.reviewOnly ? t.previewCartNote : t.cartNote}</p>
   </dialog>
-  <script src="/store.js?v=20261017-3for2" type="module"></script>
+  <script src="/store.js?v=language" type="module"></script>
 </body>
-</html>`, { status, headers: { ...HTML_HEADERS, "x-robots-tag": "noindex, nofollow" } });
+</html>`, { status, headers: HTML_HEADERS });
 }
 
 function home(site, store) {
+  const path = (value) => shopPath(store, value);
   const t = ui(store.locale);
   const products = featuredProducts(store);
   const collections = (store.collections || []).filter((collection) => collection.products?.length);
   return page(site, store, t.homeTitle, `
     <section class="hero">
-      <div class="hero-copy"><h1>${t.heroTitle}</h1><p>${t.heroDescription}</p><div class="hero-actions"><a class="button" href="/collections/all">${t.exploreWatches} <span aria-hidden="true">↗</span></a><a class="text-link" href="/pages/about">${t.ourStory}</a></div></div>
+      <div class="hero-copy"><h1>${t.heroTitle}</h1><p>${t.heroDescription}</p><div class="hero-actions"><a class="button" href="${path("/collections/all")}">${t.exploreWatches} <span aria-hidden="true">↗</span></a><a class="text-link" href="${path("/pages/about")}">${t.ourStory}</a></div></div>
       <div class="hero-art"><img src="/storefront-hero.avif" alt="${t.heroAlt}" width="1600" height="1600" fetchpriority="high"></div>
     </section>
     <div class="shell value-strip">${t.brandFeatures.map((heading) => `<span>${heading}</span>`).join("")}</div>
-    <section class="shell product-section" id="products"><div class="section-heading"><h2>${t.findFavorite}</h2><a class="text-link" href="/collections/all">${t.allWatches} ↗</a></div>
+    <section class="shell product-section" id="products"><div class="section-heading"><h2>${t.findFavorite}</h2><a class="text-link" href="${path("/collections/all")}">${t.allWatches} ↗</a></div>
       ${products.length ? `<div class="product-grid">${products.map((product) => card(product, store)).join("")}</div>` : `<p class="empty-state">${t.emptyProducts}</p>`}
     </section>
-    ${collections.length ? `<section class="shell collection-section"><div class="section-heading"><h2>${t.exploreCollections}</h2><a class="text-link" href="/collections">${t.allCollections} ↗</a></div><div class="collection-grid">${collections.slice(0, 3).map((collection) => collectionTile(collection)).join("")}</div></section>` : ""}
-    <section class="story-band"><div class="shell story-panel"><h2>${t.storyTitle}</h2><div><p>${t.storyDescription}</p><a class="text-link" href="/pages/about">${t.knowUs} ↗</a></div></div></section>`);
+    ${collections.length ? `<section class="shell collection-section"><div class="section-heading"><h2>${t.exploreCollections}</h2><a class="text-link" href="${path("/collections")}">${t.allCollections} ↗</a></div><div class="collection-grid">${collections.slice(0, 3).map((collection) => collectionTile(collection, store)).join("")}</div></section>` : ""}
+    <section class="story-band"><div class="shell story-panel"><h2>${t.storyTitle}</h2><div><p>${t.storyDescription}</p><a class="text-link" href="${path("/pages/about")}">${t.knowUs} ↗</a></div></div></section>`);
 }
 
-function collectionTile(collection) {
-  return `<a class="collection-tile" href="/collections/${encodeURIComponent(collection.handle)}"><strong>${escapeHtml(collection.title)}</strong><span aria-hidden="true">↗</span></a>`;
+function collectionTile(collection, store) {
+  return `<a class="collection-tile" href="${shopPath(store, `/collections/${encodeURIComponent(collection.handle)}`)}"><strong>${escapeHtml(collection.title)}</strong><span aria-hidden="true">↗</span></a>`;
 }
 
 function collectionsPage(site, store) {
+  const path = (value) => shopPath(store, value);
   const t = ui(store.locale);
   const collections = store.collections || [];
-  return page(site, store, t.collections, `<section class="shell inner-page"><a class="breadcrumb" href="/">${t.backStore}</a><h1>${t.collections}</h1>
-    ${collections.length ? `<div class="collection-grid">${collections.map((collection) => collectionTile(collection)).join("")}</div>` : `<p class="empty-state">${t.noCollections}</p>`}
-    <a class="text-link browse-all-link" href="/collections/all">${t.allProducts} ↗</a></section>`);
+  return page(site, store, t.collections, `<section class="shell inner-page"><a class="breadcrumb" href="${path("/")}">${t.backStore}</a><h1>${t.collections}</h1>
+    ${collections.length ? `<div class="collection-grid">${collections.map((collection) => collectionTile(collection, store)).join("")}</div>` : `<p class="empty-state">${t.noCollections}</p>`}
+    <a class="text-link browse-all-link" href="${path("/collections/all")}">${t.allProducts} ↗</a></section>`);
 }
 
 function catalogPage(site, store, url, collection = null) {
+  const path = (value) => shopPath(store, value);
   const t = ui(store.locale);
   const searching = url.pathname === "/search";
   const query = (url.searchParams.get("q") || "").trim().slice(0, 100);
@@ -184,8 +193,8 @@ function catalogPage(site, store, url, collection = null) {
   if (sort === "title") products.sort((a, b) => a.title.localeCompare(b.title, store.locale));
   if (sort === "featured") products.sort((a, b) => (FEATURED_HANDLES.indexOf(a.handle) < 0 ? 99 : FEATURED_HANDLES.indexOf(a.handle)) - (FEATURED_HANDLES.indexOf(b.handle) < 0 ? 99 : FEATURED_HANDLES.indexOf(b.handle)));
   const title = searching ? t.search : collection?.title || t.allProducts;
-  return page(site, store, title, `<section class="shell inner-page catalog-page"><a class="breadcrumb" href="/">${t.backStore}</a><h1>${escapeHtml(title)}</h1>${collection ? descriptionHtml(collection) : ""}
-    <form class="catalog-tools" method="get" action="${escapeHtml(url.pathname)}">
+  return page(site, store, title, `<section class="shell inner-page catalog-page"><a class="breadcrumb" href="${path("/")}">${t.backStore}</a><h1>${escapeHtml(title)}</h1>${collection ? descriptionHtml(collection) : ""}
+    <form class="catalog-tools" method="get" action="${escapeHtml(path(url.pathname))}">
       ${searching ? `<div class="search-field"><label for="search-query">${t.searchProducts}</label><div><input id="search-query" name="q" type="search" value="${escapeHtml(query)}" maxlength="100" placeholder="${t.searchPlaceholder}"><button class="button" type="submit">${t.search}</button></div></div>` : ""}
       <div class="catalog-filters"><span role="status">${products.length} ${t.productsCount}</span><label class="stock-filter"><input type="checkbox" name="stock" value="available"${inStock ? " checked" : ""}> ${t.inStockOnly}</label><label for="sort">${t.sort}</label><select name="sort" id="sort" data-submit-on-change>${[["featured", t.featured], ["price-asc", t.priceLow], ["price-desc", t.priceHigh], ["title", t.nameSort]].map(([value, label]) => `<option value="${value}"${sort === value ? " selected" : ""}>${label}</option>`).join("")}</select><button class="filter-submit" type="submit">${t.apply}</button></div>
     </form>
@@ -194,6 +203,7 @@ function catalogPage(site, store, url, collection = null) {
 }
 
 function productPage(site, store, product) {
+  const path = (value) => shopPath(store, value);
   const t = ui(store.locale);
   const variants = product.variants || [];
   const soldOut = variants.every((variant) => variant.outOfStock);
@@ -203,14 +213,14 @@ function productPage(site, store, product) {
     return `<option value="${escapeHtml(variant.id)}" data-out-of-stock="${Boolean(variant.outOfStock)}"${variant.id === selected?.id ? " selected" : ""}${variant.outOfStock ? " disabled" : ""}>${escapeHtml(label)} · ${escapeHtml(price(variant.price, store.currency, store.locale))}${variant.outOfStock ? ` · ${t.outOfStock}` : ""}</option>`;
   }).join("");
   return page(site, store, product.title, `<section class="shell inner-page">
-    <a class="breadcrumb" href="/collections/all">${t.backAllProducts}</a>
+    <a class="breadcrumb" href="${path("/collections/all")}">${t.backAllProducts}</a>
     <div class="product-detail"><div class="product-gallery"><div class="gallery-stage">${(product.images?.length ? product.images : [null]).map((image, index) => `<div class="detail-image" data-gallery-image="${index}"${index ? " hidden" : ""}>${picture(product, "", image, "(max-width: 900px) 100vw, 50vw", index === 0)}</div>`).join("")}</div>${product.images?.length > 1 ? `<div class="gallery-thumbs" aria-label="${t.productImages}">${product.images.map((image, index) => `<button type="button" data-gallery-select="${index}" aria-label="${t.image} ${index + 1}" aria-pressed="${index === 0}">${picture(product, "", image, "80px")}</button>`).join("")}</div>` : ""}</div>
       <div class="detail-copy"><span class="eyebrow">${escapeHtml(product.brand || site.name)}</span>
         <h1>${escapeHtml(product.title)}</h1><p class="detail-price">${escapeHtml(productPrice(product, store))}</p>
         ${options ? `<form data-add-to-cart><label for="variant">${t.options}</label><select id="variant" name="variantId" required${soldOut ? " disabled" : ""}>${options}</select>
           <label for="quantity">${t.quantity}</label><input id="quantity" name="quantity" type="number" min="1" max="20" value="1" required>
           <button class="button" type="submit"${soldOut ? " disabled" : ""}>${soldOut ? t.outOfStock : t.addToCart}</button><p data-add-message role="status"></p></form>` : ""}
-        <div class="purchase-help"><a href="/pages/shipping">${t.shipping} ↗</a><a href="/policies/returns">${t.returns} ↗</a><a href="/pages/contact">${t.productQuestion} ↗</a></div>
+        <div class="purchase-help"><a href="${path("/pages/shipping")}">${t.shipping} ↗</a><a href="${path("/policies/returns")}">${t.returns} ↗</a><a href="${path("/pages/contact")}">${t.productQuestion} ↗</a></div>
         <div class="product-description">${descriptionHtml(product)}</div>
       </div>
     </div>
@@ -218,27 +228,21 @@ function productPage(site, store, product) {
 }
 
 function cartPage(site, store) {
+  const path = (value) => shopPath(store, value);
   const t = ui(store.locale);
-  return page(site, store, t.cart, `<section class="shell inner-page"><a class="breadcrumb" href="/collections/all">${t.continueShopping}</a>
+  return page(site, store, t.cart, `<section class="shell inner-page"><a class="breadcrumb" href="${path("/collections/all")}">${t.continueShopping}</a>
     <h1>${t.yourCart}</h1><div data-cart-items><p>${t.loadingCart}</p></div><p data-cart-total class="cart-total"></p>
-    <button class="button" type="button" data-start-checkout data-review-only="false" disabled>${store.reviewOnly ? t.previewCheckoutButton : t.checkout}</button>
+    <button class="button" type="button" data-start-checkout disabled>${store.reviewOnly ? t.previewCheckoutButton : t.checkout}</button>
     <p data-checkout-error role="alert" tabindex="-1" hidden></p>
     <p class="cart-note">${store.reviewOnly ? t.previewCartNote : t.cartNote}</p></section>`);
 }
 
-function completePage(site, store) {
-  const t = ui(store.locale);
-  return page(site, store, t.orderComplete, `<section class="shell inner-page" data-checkout-complete>
-    <span class="eyebrow">${t.thankYou}</span><h1>${t.orderCompleteHeading}</h1>
-    <p class="lead">${t.orderCompleteText}</p>
-    <a class="button" href="/collections/all">${t.continueToStore}</a></section>`);
-}
-
 function informationPage(site, store, slug) {
+  const path = (value) => shopPath(store, value);
   const t = ui(store.locale);
-  if (slug === "/pages/about") return page(site, store, "About Us", `<section class="shell editorial-page"><a class="breadcrumb" href="/">${t.backStore}</a><h1>About Us</h1><div class="editorial-body">${aboutHtml}</div></section>`);
-  const original = sourcePages[slug];
-  if (original) return page(site, store, original.title, `<section class="shell editorial-page"><a class="breadcrumb" href="/">${t.backStore}</a><h1>${escapeHtml(original.title)}</h1><div class="editorial-body">${original.html}</div></section>`);
+  if (slug === "/pages/about") return page(site, store, t.about, `<section class="shell editorial-page"><a class="breadcrumb" href="${path("/")}">${t.backStore}</a><h1>${t.about}</h1><div class="editorial-body">${aboutHtml[language(store.locale)].replace('href="/collections/all"', `href="${path("/collections/all")}"`)}</div></section>`);
+  const original = (language(store.locale) === "en" && englishPages[slug]) || sourcePages[slug];
+  if (original) return page(site, store, original.title, `<section class="shell editorial-page"><a class="breadcrumb" href="${path("/")}">${t.backStore}</a><h1>${escapeHtml(original.title)}</h1><div class="editorial-body">${original.html}</div></section>`);
   const key = {
     "/pages/about": "about", "/pages/contact": "contact", "/pages/shipping": "shipping",
     "/pages/faq": "faq", "/policies/returns": "returns", "/policies/privacy": "privacy",
@@ -256,8 +260,8 @@ function informationPage(site, store, slug) {
     storeContent.address && `<p><strong>${t.address}:</strong> ${escapeHtml(storeContent.address)}</p>`,
   ].filter(Boolean).join("");
   const sections = content.sections.map(([heading, body]) => `<h2>${renderText(heading)}</h2><p>${renderText(body)}</p>`).join("");
-  const links = key === "contact" ? `<div class="inline-links"><a href="/pages/shipping">${t.shipping} ↗</a><a href="/policies/returns">${t.returns} ↗</a></div>` : "";
-  return page(site, store, content.title, `<section class="shell editorial-page"><a class="breadcrumb" href="/">${t.backStore}</a><div class="editorial-heading"><span class="eyebrow">${escapeHtml(content.eyebrow)}</span><h1>${escapeHtml(content.title)}</h1><p class="lead">${escapeHtml(content.lead)}</p></div><div class="editorial-body">${sections}${details}${links}</div></section>`);
+  const links = key === "contact" ? `<div class="inline-links"><a href="${path("/pages/shipping")}">${t.shipping} ↗</a><a href="${path("/policies/returns")}">${t.returns} ↗</a></div>` : "";
+  return page(site, store, content.title, `<section class="shell editorial-page"><a class="breadcrumb" href="${path("/")}">${t.backStore}</a><div class="editorial-heading"><span class="eyebrow">${escapeHtml(content.eyebrow)}</span><h1>${escapeHtml(content.title)}</h1><p class="lead">${escapeHtml(content.lead)}</p></div><div class="editorial-body">${sections}${details}${links}</div></section>`);
 }
 
 async function delivery(result) {
@@ -312,9 +316,10 @@ function routeHandle(pathname, segment) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const response = await handle(request, env, url);
+    const reviewOnly = env.CHECKOUT_ENABLED === "false" || url.protocol !== "https:" || url.hostname !== LIVE_HOSTNAME;
+    const response = await handle(request, env, url, reviewOnly);
     const headers = new Headers(response.headers);
-    if (url.hostname.endsWith(".workers.dev") || env.REAI_REVIEW_ONLY === "true") {
+    if (reviewOnly) {
       headers.set("x-robots-tag", "noindex, nofollow");
     }
     if (url.protocol === "https:") {
@@ -328,16 +333,15 @@ export default {
   },
 };
 
-async function handle(request, env, url) {
+async function handle(request, env, url, reviewOnly) {
   if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "POST" && request.method !== "PATCH") return new Response("Method not allowed", { status: 405 });
   if (url.pathname.startsWith("/assets/") || ["/styles.css", "/store.js", "/cart-rules.js", "/checkout.js", "/checkout-preview.js", "/checkout.css", "/storefront-mark.svg", "/storefront-hero.avif"].includes(url.pathname)) return env.ASSETS.fetch(request);
-  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/robots.txt" && (url.hostname.endsWith(".workers.dev") || env.REAI_REVIEW_ONLY === "true")) {
-    return new Response("User-agent: *\nDisallow: /\n", {
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/robots.txt") {
+    return new Response(`User-agent: *\nDisallow:${reviewOnly ? " /" : ""}\n`, {
       headers: {
         "content-type": "text/plain; charset=utf-8",
         "cache-control": "no-store",
         "x-content-type-options": "nosniff",
-        "x-robots-tag": "noindex, nofollow",
       },
     });
   }
@@ -346,17 +350,27 @@ async function handle(request, env, url) {
     destination.hostname = env.CANONICAL_HOSTNAME;
     return Response.redirect(destination.href, 308);
   }
+  const english = url.pathname === "/en" || url.pathname.startsWith("/en/");
+  const pathPrefix = english ? "/en" : "";
+  const route = new URL(url);
+  route.pathname = "/" + route.pathname.slice(pathPrefix.length).replace(/^\/+/, "");
+  const pathname = route.pathname;
+  const alternate = english
+    ? { href: escapeHtml(pathname + url.search), lang: "nb", label: "Norsk", shortLabel: "NO" }
+    : { href: escapeHtml("/en" + pathname + url.search), lang: "en", label: "English", shortLabel: "EN" };
+  const requestedLocale = english ? "en" : "nb-NO";
+  const messages = ui(requestedLocale);
   if (request.method === "POST" || request.method === "PATCH") {
-    if (env.REAI_REVIEW_ONLY === "true" && !["/cart/quote", "/checkout/start"].includes(url.pathname)) return json({ error: ui("nb").previewCheckout }, 403);
-    if (!["/checkout/start", "/cart/quote"].includes(url.pathname) && !url.pathname.startsWith("/reai/checkout/")) return json({ error: "Method not allowed" }, 405);
-    if (request.headers.get("Origin") !== url.origin) return json({ error: "Invalid origin" }, 403);
+    if (reviewOnly && !["/cart/quote", "/checkout/start"].includes(pathname)) return json({ error: messages.previewCheckout }, 403);
+    if (!["/checkout/start", "/cart/quote"].includes(pathname) && !pathname.startsWith("/reai/checkout/")) return json({ error: "Method not allowed" }, 405);
+    if (request.headers.get("Origin") !== url.origin || request.headers.get("Sec-Fetch-Site") === "cross-site") return json({ error: "Invalid origin" }, 403);
     if (!request.headers.get("Content-Type")?.startsWith("application/json")) return json({ error: "Expected JSON" }, 415);
-    if (env.CHECKOUT_RATE_LIMIT && !(await env.CHECKOUT_RATE_LIMIT.limit({key:`${url.host}:${request.headers.get("CF-Connecting-IP")||"local"}`})).success) return json({error:ui("nb").tooManyRequests},429);
+    if (env.CHECKOUT_RATE_LIMIT && !(await env.CHECKOUT_RATE_LIMIT.limit({key:`${url.host}:${request.headers.get("CF-Connecting-IP")||"local"}`})).success) return json({error:messages.tooManyRequests},429);
   }
 
   if (!env.REAI_API_BASE_URL || !env.REAI_SITE_CREDENTIAL) {
-    const t = ui("en");
-    return page(null, { locale: "en" }, t.comingSoon, `<section class="shell inner-page"><span class="eyebrow">${t.comingSoon}</span><h1>${t.setupHeading}</h1><p class="lead">${t.setupText}</p></section>`, 503);
+    const t = messages;
+    return page(null, { locale: requestedLocale, pathPrefix, alternate }, t.comingSoon, `<section class="shell inner-page"><span class="eyebrow">${t.comingSoon}</span><h1>${t.setupHeading}</h1><p class="lead">${t.setupText}</p></section>`, 503);
   }
 
   try {
@@ -364,12 +378,15 @@ async function handle(request, env, url) {
     if (!(["http:", "https:"].includes(baseUrl.protocol))) throw new Error("Invalid API URL");
     const client = new ReaiSiteClient({ baseUrl: baseUrl.href, token: env.REAI_SITE_CREDENTIAL });
     const site = await delivery(client.site());
-    const merchant = await merchantCheckout(request, env, client, site, boundedJson);
-    if (merchant) return merchant;
     const market = site.markets?.find((entry) => entry.default) || site.markets?.[0];
     if (!market) throw new Error("No Site market configured");
-    const context = { market: market.handle, locale: market.defaultLocale };
-    if (["/checkout/start", "/cart/quote"].includes(url.pathname)) {
+    const locale = english
+      ? market.locales?.find((entry) => language(entry) === "en") || market.defaultLocale
+      : market.defaultLocale;
+    const context = { market: market.handle, locale };
+    const merchant = await merchantCheckout(request, env, client, market, boundedJson, { pathname, pathPrefix, reviewOnly, locale: requestedLocale });
+    if (merchant) return merchant;
+    if (["/checkout/start", "/cart/quote"].includes(pathname)) {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
       const body = await boundedJson(request);
       let lines = checkoutLines(body);
@@ -379,14 +396,14 @@ async function handle(request, env, url) {
         try { lines = withWatchCase(lines, catalog); } catch (error) { return json({error:error.message === "watch_limit" ? ui(context.locale).cartLimit : ui(context.locale).caseUnavailable},400); }
         if (!lines.length) return json({ error: ui(context.locale).emptyCart }, 400);
       }
-      if (url.pathname === "/cart/quote") {
+      if (pathname === "/cart/quote") {
         const quote = await client.quoteCart({lines},context);
         return new Response(quote.response.body,{status:quote.response.status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
       }
-      if (env.REAI_REVIEW_ONLY === "true") return json({checkoutUrl:`${url.origin}/checkout`});
+      if (reviewOnly) return json({checkoutUrl:`${url.origin}${pathPrefix}/checkout`});
       try {
         const session = await delivery(client.createCheckoutSession(
-          { lines, returnUrl: `${url.origin}/checkout/complete`, ...(env.MERCHANT_CHECKOUT_PATH ? {merchantCheckoutUrl: `${url.origin}${env.MERCHANT_CHECKOUT_PATH}`} : {}) }, context,
+          { lines, returnUrl: `${url.origin}${pathPrefix}/checkout/complete`, merchantCheckoutUrl: `${url.origin}${pathPrefix}/checkout` }, context,
           request.headers.get("Idempotency-Key") || crypto.randomUUID(),
         ));
         return json({ checkoutUrl: session.checkoutUrl });
@@ -400,11 +417,11 @@ async function handle(request, env, url) {
       }
     }
     const store = await delivery(client.storefront(context));
-    store.reviewOnly = env.REAI_REVIEW_ONLY === "true";
+    Object.assign(store, { locale: english ? "en" : store.locale, pathPrefix, alternate, reviewOnly });
 
-    if (["/", "/catalog.json", "/search"].includes(url.pathname) || /^\/(collections|products)(\/|$)/.test(url.pathname)) {
-      const stockProducts = url.pathname.startsWith("/products/")
-        ? store.products.filter((product) => product.handle === routeHandle(url.pathname, "products")) : store.products;
+    if (["/", "/catalog.json", "/search"].includes(pathname) || /^\/(collections|products)(\/|$)/.test(pathname)) {
+      const stockProducts = pathname.startsWith("/products/")
+        ? store.products.filter((product) => product.handle === routeHandle(pathname, "products")) : store.products;
       const ids = (stockProducts || []).flatMap((product) => (product.variants || []).map((variant) => variant.id));
       const availability = new Map();
       for (let start = 0; start < ids.length; start += 100) {
@@ -416,31 +433,30 @@ async function handle(request, env, url) {
       }));
     }
 
-    if (url.pathname === "/catalog.json") return json({ products: store.products, currency: store.currency, locale: store.locale, watchProductIds: watchProductIds(store) });
-    if (url.pathname === "/") return home(site, store);
-    if (url.pathname === "/search") return catalogPage(site, store, url);
-    if (/^\/collections\/?$/.test(url.pathname)) return collectionsPage(site, store);
-    if (/^\/collections\/all\/?$/.test(url.pathname)) return catalogPage(site, store, url);
-    const information = informationPage(site, store, url.pathname.replace(/\/$/, ""));
+    if (pathname === "/catalog.json") return json({ products: store.products, currency: store.currency, locale: store.locale, watchProductIds: watchProductIds(store) });
+    if (pathname === "/") return home(site, store);
+    if (pathname === "/search") return catalogPage(site, store, route);
+    if (/^\/collections\/?$/.test(pathname)) return collectionsPage(site, store);
+    if (/^\/collections\/all\/?$/.test(pathname)) return catalogPage(site, store, route);
+    const information = informationPage(site, store, pathname.replace(/\/$/, ""));
     if (information) return information;
-    if (url.pathname === "/cart") return cartPage(site, store);
-    if (url.pathname === "/checkout/complete") return completePage(site, store);
-    const collectionHandle = routeHandle(url.pathname, "collections");
+    if (pathname === "/cart") return cartPage(site, store);
+    const collectionHandle = routeHandle(pathname, "collections");
     if (collectionHandle !== null) {
       const collection = store.collections?.find((entry) => entry.handle === collectionHandle);
-      if (collection) return catalogPage(site, store, url, collection);
+      if (collection) return catalogPage(site, store, route, collection);
     }
-    const productHandle = routeHandle(url.pathname, "products");
+    const productHandle = routeHandle(pathname, "products");
     if (productHandle !== null) {
       const product = store.products?.find((entry) => entry.handle === productHandle);
       if (product) return productPage(site, store, product);
     }
     const t = ui(store.locale);
-    return page(site, store, t.notFound, `<section class="shell inner-page"><span class="eyebrow">404</span><h1>${t.notFoundHeading}</h1><a class="button" href="/">${t.backToStore}</a></section>`, 404);
+    return page(site, store, t.notFound, `<section class="shell inner-page"><span class="eyebrow">404</span><h1>${t.notFoundHeading}</h1><a class="button" href="${shopPath(store, "/")}">${t.backToStore}</a></section>`, 404);
   } catch (error) {
     console.error("Storefront request failed", error);
-    if (["/checkout/start", "/cart/quote"].includes(url.pathname)) return json({ error: "Checkout is temporarily unavailable" }, 502);
-    const t = ui("en");
-    return page(null, { locale: "en" }, t.temporarilyUnavailable, `<section class="shell inner-page"><span class="eyebrow">${t.tryAgain}</span><h1>${t.unavailableHeading}</h1><p class="lead">${t.unavailableText}</p></section>`, 502);
+    if (["/checkout/start", "/cart/quote"].includes(pathname)) return json({ error: "Checkout is temporarily unavailable" }, 502);
+    const t = messages;
+    return page(null, { locale: requestedLocale, pathPrefix, alternate }, t.temporarilyUnavailable, `<section class="shell inner-page"><span class="eyebrow">${t.tryAgain}</span><h1>${t.unavailableHeading}</h1><p class="lead">${t.unavailableText}</p></section>`, 502);
   }
 }

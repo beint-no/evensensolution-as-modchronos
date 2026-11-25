@@ -1,5 +1,5 @@
 if (JSON.parse(document.body.dataset.checkout).reviewOnly) {
-  await import('/checkout-preview.js?v=3for2');
+  await import('/checkout-preview.js?v=language');
 } else {
 const root = document.body;
 const pathPrefix = root.dataset.pathPrefix || '';
@@ -337,7 +337,10 @@ document.querySelector('[data-remove-discount]')?.addEventListener('click',async
 if (form) {
   if (!state.editable) { form.hidden=true; const p=document.createElement('p');p.textContent=state.phase==='expired'?t('This checkout has expired. Your bag is still available.','Denne kassen har utløpt. Handlekurven din er bevart.'):t('Payment is in progress. Continue on the secure payment page.','Betalingen er i gang. Fortsett på den sikre betalingssiden.');const link=document.createElement('a');link.className='co-button';link.href=state.phase==='expired'?sitePath('/cart'):state.paymentUrl;link.textContent=state.phase==='expired'?t('Return to bag','Tilbake til handlekurven'):t('Continue payment','Fortsett betaling');form.before(p,link); }
   else {
-    if(restoredDraft)save().then(()=>{if(state.dynamicShipping&&addressComplete(customer()))return discover(state.selectedOptionToken||undefined,true);}).then(warmPayment).catch(error);
+    if(restoredDraft)save().then(()=>{
+      if(state.dynamicShipping && addressComplete(customer()))return discover(state.selectedOptionToken||undefined,true);
+      if(!state.dynamicShipping)renderDelivery();
+    }).then(warmPayment).catch(error);
     else if(state.dynamicShipping&&addressComplete(customer())) {
       discover(state.selectedOptionToken||undefined,true).then(()=> {
         if(options.find(o=>o.token===state.selectedOptionToken)?.pickupRequired)return discover(state.selectedOptionToken);

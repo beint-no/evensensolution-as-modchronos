@@ -12,11 +12,10 @@ belong in ReAI. Design, assets and editorial content belong in this repository.
 The Worker uses REAI_API_BASE_URL and a server-side REAI_SITE_CREDENTIAL; never
 expose the credential in browser code or commit real credentials.
 
-The branded storefront is a workers.dev preview. The original merchant site is
-modchronos.eu. Source snapshots, design decisions and outstanding launch review
-are documented in DESIGN.md. Review preserved merchant claims and Shopify-specific
-policy references before a sales launch. Do not change payment settings or publish
-new promotional promises as part of a design update.
+The storefront at https://modchronos.com uses ReAI for checkout and payment.
+Norwegian is the default. English is at /en and uses the same NOK market, cart,
+pricing and shipping rules. Original source snapshots and design decisions are
+documented in DESIGN.md.
 
 Keep the existing managed Worker `reai-store-9bd71d09ac8b4b87b22a7719893327d5` and its credentials intact.
 The public review URL is https://modchronos.respiro.workers.dev. Its small `modchronos`
@@ -37,12 +36,10 @@ Avoid creating production orders or payments for verification.
 Production and preview publishing are local-first. Actions workflows are manual-only
 while the private Actions budget is unavailable. `npm run deploy` checks and deploys
 both the storefront and the short-address alias. `npm run deploy:local` does the same.
-The runtime always uses https://app.reai.no, never a developer tunnel.
-`REAI_REVIEW_ONLY=true` permits read-only cart quotes and a checkout form preview,
-but rejects every checkout-session, delivery-selection and payment write. No review
-interaction creates an order, payment, reservation or customer. The preview does
-not claim to validate an address or delivery quote. Both review addresses are noindex.
-Do not remove this guard or connect modchronos.com without merchant launch approval.
+The runtime uses https://app.reai.no. The Worker allows checkout writes only on
+https://modchronos.com. `CHECKOUT_ENABLED=false` forces review mode. Preview hosts
+permit read-only quotes and a checkout form preview, block checkout API writes
+and disallow indexing.
 
 ## Manual GitHub Actions
 
@@ -88,13 +85,12 @@ then requests an authoritative read-only cart quote. Recompute after every cart 
 do not implement a separate browser pricing rule. Gift-inclusive carts allow up to
 99 watches, matching the Site API line limit.
 
-`MERCHANT_CHECKOUT_PATH=/checkout` keeps contact/address/delivery in the Worker,
+`/checkout` and `/en/checkout` keep contact, address and delivery in the Worker,
 following the New Movements checkout/client implementation. Live sessions, revision
 checks, discounts, shipping discovery and unpayable payment preparation remain ReAI
 owned. Only secure summary/payment moves to ReAI. Private checkout pages and proxies
 are no-store, noindex and no-referrer. Confirmation verifies completion before
-subtracting purchased quantities once. Preserve review mode until merchant launch
-approval; never enable payments just to verify the UI.
+subtracting purchased quantities once.
 
 The public-source ready-to-buy catalog is imported from Shopify and published in
 ReAI. Custom-builder products remain outside this preview until a supported builder
