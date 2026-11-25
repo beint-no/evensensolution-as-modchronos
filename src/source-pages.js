@@ -32,8 +32,8 @@ export const sourcePages = {
 <li>Returnert med alle originale deler, emballasje og tilbehør (inkludert medfølgende klokkeetui).</li>
 </ul>
 <p>Varer som bærer preg av bruk, slitasje eller skade forårsaket av kunden kan avvises for retur.</p>
-<h2>Kampanjevarer – «3 for 2»</h2>
-<p>Når en tredje klokke følger med gratis som del av en 3 for 2-kampanje, gjelder returretten kun for de betalte varene. Den gratis klokken er en kampanjevare og kan ikke returneres eller refunderes separat. Dersom du returnerer én eller begge av de betalte klokkene, må den gratis klokken returneres samtidig, og refusjonen dekker kun beløpet som faktisk er betalt.</p>
+<h2>Kampanjevarer og medfølgende gaver</h2>
+<p>Dersom en bestilling inkluderer en medfølgende gave eller kampanjevare (som klokkeetuiet eller en gratis vare fra en kampanje), må denne returneres sammen med hovedvaren ved full retur. Refusjonen dekker beløpet som faktisk er betalt.</p>
 <h2>Slik starter du en retur</h2>
 <p>Kontakt kundeservice på <a href="mailto:support@modchronos.com">support@modchronos.com</a> med ordrenummeret ditt. Når returen er godkjent sender vi deg forsendelsesinstruksjoner.</p>
 <h2>Returfrakt</h2>

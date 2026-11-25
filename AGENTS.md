@@ -5,7 +5,7 @@ ReAI Site ID: `9bd71d09-ac8b-4b87-b22a-7719893327d5`.
 
 ## What lives where
 
-- **ReAI (`https://app.reai.no`, MCP: `https://app.reai.no/mcp`)** owns products, variants, prices, stock, collections, discounts (`3FOR2`), shipping rules, orders, and payments (Adyen: Vipps, Visa, Mastercard, American Express, Klarna, Apple Pay, Google Pay).
+- **ReAI (`https://app.reai.no`, MCP: `https://app.reai.no/mcp`)** owns products, variants, prices, stock, collections, discounts (such as `VELKOMMEN10` for 10% off), newsletter subscriptions/email flows, shipping rules, orders, and payments (Adyen: Vipps, Visa, Mastercard, American Express, Klarna, Apple Pay, Google Pay).
 - **This repository** owns the website layout, styling (`public/styles.css`, `public/checkout.css`), frontend scripts (`public/store.js`, `public/checkout.js`, `public/cart-rules.js`), server rendering & edge caching (`src/worker.js`), UI copy (`src/ui-copy.js`), and editorial/policy pages (`src/about-content.js`, `src/source-pages.js`, `src/english-pages.js`, `src/brand-content.js`, `src/store-content.js`).
 - **Never commit secrets or credentials.** `REAI_SITE_CREDENTIAL` lives server-side in Cloudflare and must never appear in repository files or browser JavaScript.
 
@@ -31,10 +31,11 @@ Keep the existing managed Worker name `reai-store-9bd71d09ac8b4b87b22a7719893327
 
 `src/worker.js` uses Cloudflare's Cache API (`caches.default`) with `ETag` / `If-None-Match` conditional revalidation and stale-while-revalidate (`ctx.waitUntil(...catch(...))`) for site metadata, storefront catalog, and availability batches. Preserve edge caching and security headers (`Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `X-Robots-Tag: noindex, nofollow` on preview hosts).
 
-## Promotions and merchant checkout
+## Promotions, newsletter, and merchant checkout
 
-- The ReAI `watch-offer` collection defines eligible watches for the automatic `3FOR2` offer (cheapest eligible watch free for every group of three).
-- `public/cart-rules.js` automatically attaches one complimentary `skinnetui-med-verktoy` (SKU `47645632135362`, price `0`) per eligible watch, including free watches.
+- Focus storefront messaging on core watch USPs (hand-assembled quality, Japanese movements, sapphire crystal, free & fast insured DDP shipping, 3-year warranty, 100-day returns, complimentary watch case) and the 10% newsletter welcome offer (`VELKOMMEN10`) rather than "3 for 2" promotions.
+- `POST /newsletter/subscribe` (and `/en/newsletter/subscribe`) proxies explicit newsletter signups to ReAI (`POST /site/v1/newsletter/subscriptions`, requiring the `newsletter:subscribe` scope on `REAI_SITE_CREDENTIAL`) and shows the `VELKOMMEN10` 10% welcome code on screen.
+- `public/cart-rules.js` automatically attaches one complimentary `skinnetui-med-verktoy` (SKU `47645632135362`, price `0`) per eligible watch.
 - `/checkout` and `/en/checkout` collect contact, address, and delivery details on `modchronos.com` before handing off to secure payment. Never enable live checkout writes on preview or `*.workers.dev` hosts (`CHECKOUT_ENABLED=false` forces read-only preview mode).
 - Avoid creating real production orders or payments when testing.
 

@@ -265,8 +265,62 @@ test("uses edge cache with ETag revalidation and keeps cart copy merchant-brande
     const cartHtml = await cartRes.text();
     assert.equal(cartRes.status, 200);
     assert.doesNotMatch(cartHtml, /ReAI kontrollerer/);
+    assert.doesNotMatch(cartHtml, /3 for 2/i);
     assert.match(cartHtml, /href="https:\/\/reai\.no" rel="external">Drevet av ReAI<\/a>/);
   } finally {
     globalThis.caches = originalCaches;
   }
+});
+
+test("focuses storefront on quality/shipping USPs without 3-for-2 and proxies 10% newsletter signup", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (input, options) => {
+    calls.push({ url: String(input), options });
+    if (String(input).endsWith("/site/v1/site")) return Response.json(site);
+    if (String(input).endsWith("/site/v1/newsletter/subscriptions")) return Response.json({ accepted: true });
+    if (String(input).includes("/commerce/availability?")) return Response.json({ variants: [{ variantId: store.products[0].variants[0].id, status: "AVAILABLE" }] });
+    return Response.json(store);
+  });
+  const env = { REAI_API_BASE_URL: "https://app.example.test", REAI_SITE_CREDENTIAL: "private-token" };
+
+  for (const path of ["/", "/en", "/products/lamp", "/en/products/lamp", "/cart", "/en/cart", "/policies/returns", "/en/policies/returns"]) {
+    const res = await worker.fetch(new Request(`https://modchronos.com${path}`), env);
+    assert.equal(res.status, 200, path);
+    const html = await res.text();
+    assert.doesNotMatch(html, /3 for 2/i, `unexpected 3 for 2 on ${path}`);
+  }
+
+  const homeHtml = await (await worker.fetch(new Request("https://modchronos.com/"), env)).text();
+  assert.match(homeHtml, /data-newsletter-form/);
+  assert.match(homeHtml, /10 %/);
+
+  const badOrigin = await worker.fetch(new Request("https://modchronos.com/newsletter/subscribe", {
+    method: "POST",
+    headers: { Origin: "https://evil.example", "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "post+test@aiak.no", consent: true }),
+  }), env);
+  assert.equal(badOrigin.status, 403);
+
+  const missingConsent = await worker.fetch(new Request("https://modchronos.com/newsletter/subscribe", {
+    method: "POST",
+    headers: { Origin: "https://modchronos.com", "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "post+test@aiak.no", consent: false }),
+  }), env);
+  assert.equal(missingConsent.status, 400);
+
+  calls.length = 0;
+  const ok = await worker.fetch(new Request("https://modchronos.com/newsletter/subscribe", {
+    method: "POST",
+    headers: { Origin: "https://modchronos.com", "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "post+test@aiak.no", consent: true }),
+  }), env);
+  assert.equal(ok.status, 200);
+  assert.deepEqual(await ok.json(), { accepted: true });
+  const subCall = calls.find((c) => c.url.endsWith("/site/v1/newsletter/subscriptions"));
+  assert.ok(subCall);
+  assert.deepEqual(JSON.parse(subCall.options.body), {
+    email: "post+test@aiak.no",
+    consent: true,
+    locale: "nb-NO",
+  });
 });
