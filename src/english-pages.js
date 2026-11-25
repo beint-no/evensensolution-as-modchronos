@@ -30,8 +30,8 @@ export const englishPages = {
 <li>Returned with all original parts, packaging, and accessories (including the complimentary watch case).</li>
 </ul>
 <p>Items showing signs of use, wear, or damage caused by the customer may be refused for return.</p>
-<h2>Promotional items – “3 for 2”</h2>
-<p>When a third watch is included for free as part of a promotion, the return right applies only to the paid items. The free watch is a promotional item and cannot be returned or refunded separately. If you return one or both of the paid watches, the free watch must be returned at the same time, and any refund will only cover the amount actually paid.</p>
+<h2>Promotional items and complimentary gifts</h2>
+<p>If an order includes a complimentary gift or promotional item (such as the included watch case or a promotional item), it must be returned together with the paid item(s) for a full refund. Any refund covers only the amount actually paid.</p>
 <h2>How to initiate a return</h2>
 <p>Contact customer service at <a href="mailto:support@modchronos.com">support@modchronos.com</a> with your order number. Once your return is approved, we will send you shipping instructions.</p>
 <h2>Return shipping</h2>

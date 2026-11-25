@@ -1,4 +1,4 @@
-import { withWatchCase, watchCase, watchProductIds } from "/cart-rules.js";
+import { withWatchCase, watchCase } from "/cart-rules.js";
 
 const shopPath = (path) => `${document.body.dataset.pathPrefix || ""}${path}`;
 
@@ -6,8 +6,8 @@ const CART_KEY = "reai-storefront-cart-v1";
 const CHECKOUT_KEY = "reai-storefront-checkout-started";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TEXT = /^(?:nb|nn|no)(?:-|$)/i.test(document.documentElement.lang) ? {
-  calculating: "Beregner tilbud…",
-  discount: "3 for 2 · automatisk rabatt",
+  calculating: "Beregner pris…",
+  discount: "Rabatt",
   cartLimit: "Handlekurven kan inneholde maksimalt 99 klokker med etui.",
   includedCase: "Inkludert gratis med klokken",
   outOfStock: "Utsolgt",
@@ -27,12 +27,15 @@ const TEXT = /^(?:nb|nn|no)(?:-|$)/i.test(document.documentElement.lang) ? {
   openingCheckout: "Åpner kassen…",
   checkout: "Gå til kassen",
   checkoutError: "Kunne ikke starte betalingen.",
-  promoNeedTwo: "Legg til 2 klokker til for 3 for 2 – få den billigste klokken gratis.",
-  promoNeedOne: "Nesten i mål! Legg til 1 klokke til og få den billigste gratis (3 for 2).",
-  promoActive: (saved) => saved ? `3 for 2 aktivert! Du sparer ${saved} + gratis klokkeetui per klokke.` : "3 for 2 aktivert! Billigste klokke trekkes fra automatisk.",
+  newsletterSending: "Sender…",
+  newsletterButton: "Få 10 % rabatt",
+  newsletterSuccess: "Takk for påmeldingen! Bruk rabattkoden VELKOMMEN10 i kassen for 10 % rabatt på din første bestilling.",
+  newsletterPreview: "Forhåndsvisning: Skjemaet fungerer. I nettbutikken får kunden rabattkoden VELKOMMEN10 (10 % rabatt).",
+  newsletterInvalid: "Skriv inn en gyldig e-postadresse og kryss av for samtykke.",
+  newsletterError: "Kunne ikke registrere e-postadressen akkurat nå. Prøv igjen.",
 } : {
-  calculating: "Calculating offer…",
-  discount: "3 for 2 · automatic offer",
+  calculating: "Calculating total…",
+  discount: "Discount",
   cartLimit: "At most 99 watches with cases per cart.",
   includedCase: "Included free with your watch",
   outOfStock: "Out of stock",
@@ -52,9 +55,12 @@ const TEXT = /^(?:nb|nn|no)(?:-|$)/i.test(document.documentElement.lang) ? {
   openingCheckout: "Opening checkout…",
   checkout: "Continue to checkout",
   checkoutError: "Checkout could not be started.",
-  promoNeedTwo: "Add 2 more watches for 3 for 2 – get the lowest-priced watch free.",
-  promoNeedOne: "Almost there! Add 1 more watch to get the lowest-priced one free (3 for 2).",
-  promoActive: (saved) => saved ? `3 for 2 applied! You save ${saved} + free watch case per watch.` : "3 for 2 applied! The lowest-priced watch is free automatically.",
+  newsletterSending: "Sending…",
+  newsletterButton: "Get 10% off",
+  newsletterSuccess: "Thanks for signing up! Enter code VELKOMMEN10 at checkout for 10% off your first order.",
+  newsletterPreview: "Preview mode: The form is ready. On the live store shoppers receive code VELKOMMEN10 (10% off).",
+  newsletterInvalid: "Please enter a valid email address and confirm your consent.",
+  newsletterError: "Could not register your email right now. Please try again.",
 };
 
 function readCart() {
@@ -135,45 +141,12 @@ document.querySelectorAll("[data-add-to-cart]").forEach((addForm) => {
 });
 
 const cartRoots = [...document.querySelectorAll("[data-cart-items]")];
-const promoBanners = [...document.querySelectorAll("[data-cart-promo]")];
 const checkoutButton = document.querySelector("[data-start-checkout]");
 const checkoutError = document.querySelector("[data-checkout-error]");
 let stockIssues = new Map();
 
 function formatMoney(value) {
   return new Intl.NumberFormat(catalog.locale, { style: "currency", currency: catalog.currency, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value));
-}
-
-function updatePromoBanners(cart, quote) {
-  if (!catalog || !promoBanners.length) return;
-  const eligibleIds = new Set(watchProductIds(catalog));
-  const eligibleVariants = new Set(
-    (catalog.products || [])
-      .filter((product) => eligibleIds.has(product.id))
-      .flatMap((product) => (product.variants || []).map((variant) => variant.id)),
-  );
-  const watchCount = cart.reduce((sum, item) => sum + (eligibleVariants.has(item.variantId) ? item.quantity : 0), 0);
-  for (const banner of promoBanners) {
-    if (!watchCount) {
-      banner.hidden = true;
-      banner.textContent = "";
-      banner.classList.remove("is-active");
-      continue;
-    }
-    const remainder = watchCount % 3;
-    const isActive = watchCount >= 3;
-    banner.hidden = false;
-    banner.classList.toggle("is-active", isActive);
-    if (isActive && quote?.discount) {
-      banner.textContent = TEXT.promoActive(formatMoney(quote.discount));
-    } else if (isActive) {
-      banner.textContent = TEXT.promoActive("");
-    } else if (remainder === 2) {
-      banner.textContent = TEXT.promoNeedOne;
-    } else {
-      banner.textContent = TEXT.promoNeedTwo;
-    }
-  }
 }
 
 function renderAll() {
@@ -183,7 +156,6 @@ function renderAll() {
   const sequence = ++quoteRequest;
   quoteError = null;
   cartRoots.forEach(renderCart);
-  updatePromoBanners(lines, cartQuote?.key === key ? cartQuote : null);
   if (!lines.length) { cartQuote = null; return; }
   fetch(shopPath("/cart/quote"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lines }) })
     .then(async (response) => {
@@ -199,13 +171,11 @@ function renderAll() {
       stockIssues.clear();
       cartQuote = { ...value, key };
       cartRoots.forEach(renderCart);
-      updatePromoBanners(readCart(), cartQuote);
     })
     .catch((error) => {
       if (sequence !== quoteRequest) return;
       quoteError = error.message;
       cartRoots.forEach(renderCart);
-      updatePromoBanners(readCart(), null);
     });
 }
 
@@ -408,4 +378,48 @@ document.querySelectorAll("[data-gallery-select]").forEach((button) => {
 
 document.querySelectorAll("[data-submit-on-change]").forEach((control) => {
   control.addEventListener("change", () => control.form.requestSubmit());
+});
+
+document.querySelectorAll("[data-newsletter-form]").forEach((form) => {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const emailInput = form.elements.email;
+    const consentInput = form.elements.consent;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const status = form.querySelector("[data-newsletter-status]");
+    const email = (emailInput?.value || "").trim();
+    const showStatus = (text, isError = false) => {
+      if (!status) return;
+      status.textContent = text;
+      status.classList.toggle("is-error", isError);
+      status.hidden = false;
+    };
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !consentInput?.checked) {
+      showStatus(TEXT.newsletterInvalid, true);
+      (email ? consentInput : emailInput)?.focus();
+      return;
+    }
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = TEXT.newsletterSending;
+    }
+    try {
+      const response = await fetch(shopPath("/newsletter/subscribe"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, consent: true }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.accepted) throw new Error(result.error || TEXT.newsletterError);
+      showStatus(result.preview ? TEXT.newsletterPreview : TEXT.newsletterSuccess, false);
+      form.reset();
+    } catch (error) {
+      showStatus(error.message || TEXT.newsletterError, true);
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = TEXT.newsletterButton;
+      }
+    }
+  });
 });

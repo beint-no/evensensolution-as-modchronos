@@ -24,7 +24,7 @@ export const storeContent = {
       ] },
       faq: { title: "Ofte stilte spørsmål", eyebrow: "Greit å vite", lead: "Svar på vanlige spørsmål om å handle hos oss.", sections: [
         ["Hvordan bestiller jeg?", "Legg klokken i handlekurven, se over bestillingen og gå videre til sikker betaling."],
-        ["Hvordan fungerer 3 for 2?", "Når du legger 3 eller flere klokker i handlekurven, trekkes prisen for den billigste klokken fra automatisk. Hver klokke leveres også med gratis klokkeetui."],
+        ["Hva følger med klokken?", "Hver klokke leveres med et gratis klokkeetui i skinn med verktøy, gratis forsikret frakt (toll og mva inkludert) og 3 års internasjonal garanti."],
         ["Kan jeg returnere en ordre?", "Vi tilbyr 100 dagers åpent kjøp. Kontakt {contact} eller se retursiden for mer informasjon."],
       ] },
       returns: { title: "Retur", eyebrow: "Etter kjøpet", lead: "100 dagers åpent kjøp på alle ordinære varer.", sections: [
@@ -60,7 +60,7 @@ export const storeContent = {
       ] },
       faq: { title: "Frequently asked questions", eyebrow: "Good to know", lead: "Answers to common questions about shopping with us.", sections: [
         ["How do I place an order?", "Add a watch to your cart, review your order, and continue to secure checkout."],
-        ["How does 3 for 2 work?", "Add 3 or more watches to your cart and the lowest-priced watch is automatically discounted to free. Every watch also includes a complimentary watch case."],
+        ["What is included with my watch?", "Every watch comes with a complimentary leather watch case with tool, free insured shipping (duties and taxes included), and a 3-year international warranty."],
         ["Can I return an order?", "We offer a 100-day open purchase. Contact {contact} or see our returns page for more details."],
       ] },
       returns: { title: "Returns", eyebrow: "After your purchase", lead: "100-day open purchase on all regular items.", sections: [

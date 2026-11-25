@@ -9,7 +9,7 @@ import { merchantCheckout } from "./merchant-checkout.js";
 import { withWatchCase, watchProductIds } from "../public/cart-rules.js";
 
 const LIVE_HOSTNAME = "modchronos.com";
-const ASSET_VERSION = "20261125";
+const ASSET_VERSION = "20261125b";
 const SITE_FRESH_MS = 300_000;
 const SITE_SWR_MS = 900_000;
 const STOREFRONT_FRESH_MS = 60_000;
@@ -179,7 +179,7 @@ function page(site, store, title, body, status = 200, { cacheControl = "no-store
   </div><div class="shell footer-bottom"><span>© ${new Date().getUTCFullYear()} ${escapeHtml(legalName)}${storeContent.organizationNumber ? ` · ${escapeHtml(storeContent.organizationNumber)}` : ""}</span><a class="powered-by" href="https://reai.no" rel="external">${t.poweredBy} ReAI</a></div></footer>
   <dialog class="cart-drawer" data-cart-drawer aria-labelledby="cart-drawer-title">
     <header><h2 id="cart-drawer-title">${t.yourCart}</h2><button type="button" data-close-cart>${t.close}</button></header>
-    <div class="cart-promo" data-cart-promo hidden></div>
+    <p class="cart-trust">${escapeHtml(t.cartTrustBanner)}</p>
     <div data-cart-items><p>${t.loadingCart}</p></div>
     <div class="cart-drawer-footer">
       <p class="shipping-pill">${t.freeShippingBadge}</p>
@@ -219,7 +219,29 @@ function home(site, store, options) {
       ${products.length ? `<div class="product-grid">${products.map((product, index) => card(product, store, index < 4)).join("")}</div>` : `<p class="empty-state">${t.emptyProducts}</p>`}
     </section>
     ${collections.length ? `<section class="shell collection-section"><div class="section-heading"><h2>${t.exploreCollections}</h2><a class="text-link" href="${path("/collections")}">${t.allCollections} ↗</a></div><div class="collection-grid">${collections.slice(0, 6).map((collection) => collectionTile(collection, store)).join("")}</div></section>` : ""}
-    <section class="story-band"><div class="shell story-panel"><h2>${t.storyTitle}</h2><div><p>${t.storyDescription}</p><a class="text-link" href="${path("/pages/about")}">${t.knowUs} ↗</a></div></div></section>`,
+    <section class="shell craft-section" aria-labelledby="craft-heading">
+      <div class="section-heading"><div><span class="eyebrow">${escapeHtml(t.craftEyebrow)}</span><h2 id="craft-heading">${escapeHtml(t.craftHeading)}</h2></div><a class="text-link" href="${path("/pages/about")}">${t.knowUs} ↗</a></div>
+      <div class="craft-grid">${t.craftPillars.map(([heading, copy]) => `<article class="craft-card"><h3>${escapeHtml(heading)}</h3><p>${escapeHtml(copy)}</p></article>`).join("")}</div>
+    </section>
+    <section class="story-band"><div class="shell story-panel"><h2>${t.storyTitle}</h2><div><p>${t.storyDescription}</p><a class="text-link" href="${path("/pages/about")}">${t.knowUs} ↗</a></div></div></section>
+    <section class="newsletter-band" id="newsletter" aria-labelledby="newsletter-heading">
+      <div class="shell newsletter-panel">
+        <div class="newsletter-copy">
+          <span class="eyebrow">${escapeHtml(t.newsletterEyebrow)}</span>
+          <h2 id="newsletter-heading">${escapeHtml(t.newsletterTitle)}</h2>
+          <p>${escapeHtml(t.newsletterDescription)}</p>
+        </div>
+        <form class="newsletter-form" data-newsletter-form novalidate>
+          <div class="newsletter-field">
+            <label class="sr-only" for="newsletter-email">${escapeHtml(t.newsletterEmailLabel)}</label>
+            <input id="newsletter-email" name="email" type="email" autocomplete="email" inputmode="email" required maxlength="254" placeholder="${escapeHtml(t.newsletterPlaceholder)}">
+            <button class="button" type="submit">${escapeHtml(t.newsletterButton)}</button>
+          </div>
+          <label class="newsletter-consent"><input type="checkbox" name="consent" value="true" required><span>${escapeHtml(t.newsletterConsent)}</span></label>
+          <p class="newsletter-status" data-newsletter-status role="status" aria-live="polite" hidden></p>
+        </form>
+      </div>
+    </section>`,
     200,
     { ...options, cacheControl: "public, max-age=60, stale-while-revalidate=300" },
   );
@@ -307,7 +329,7 @@ function cartPage(site, store, options) {
   const t = ui(store.locale);
   return page(site, store, t.cart, `<section class="shell inner-page cart-page"><a class="breadcrumb" href="${path("/collections/all")}">${t.continueShopping}</a>
     <h1>${t.yourCart}</h1>
-    <div class="cart-promo" data-cart-promo hidden></div>
+    <p class="cart-trust">${escapeHtml(t.cartTrustBanner)}</p>
     <div class="cart-layout">
       <div class="cart-items-col" data-cart-items><p>${t.loadingCart}</p></div>
       <aside class="cart-summary-card">
@@ -593,8 +615,8 @@ async function handle(request, env, url, reviewOnly, ctx) {
   const requestedLocale = english ? "en" : "nb-NO";
   const messages = ui(requestedLocale);
   if (request.method === "POST" || request.method === "PATCH") {
-    if (reviewOnly && !["/cart/quote", "/checkout/start"].includes(pathname)) return json({ error: messages.previewCheckout }, 403);
-    if (!["/checkout/start", "/cart/quote"].includes(pathname) && !pathname.startsWith("/reai/checkout/")) return json({ error: "Method not allowed" }, 405);
+    if (reviewOnly && !["/cart/quote", "/checkout/start", "/newsletter/subscribe"].includes(pathname)) return json({ error: messages.previewCheckout }, 403);
+    if (!["/checkout/start", "/cart/quote", "/newsletter/subscribe"].includes(pathname) && !pathname.startsWith("/reai/checkout/")) return json({ error: "Method not allowed" }, 405);
     if (request.headers.get("Origin") !== url.origin || request.headers.get("Sec-Fetch-Site") === "cross-site") return json({ error: "Invalid origin" }, 403);
     if (!request.headers.get("Content-Type")?.startsWith("application/json")) return json({ error: "Expected JSON" }, 415);
     if (env.CHECKOUT_RATE_LIMIT && !(await env.CHECKOUT_RATE_LIMIT.limit({ key: `${url.host}:${request.headers.get("CF-Connecting-IP") || "local"}` })).success) return json({ error: messages.tooManyRequests }, 429);
@@ -618,6 +640,26 @@ async function handle(request, env, url, reviewOnly, ctx) {
     const context = { market: market.handle, locale };
     const merchant = await merchantCheckout(request, env, client, market, boundedJson, { pathname, pathPrefix, reviewOnly, locale: requestedLocale });
     if (merchant) return merchant;
+    if (pathname === "/newsletter/subscribe") {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      const body = await boundedJson(request);
+      const email = typeof body?.email === "string" ? body.email.trim() : "";
+      if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || body?.consent !== true) {
+        return json({ error: "Invalid subscription request" }, 400);
+      }
+      if (reviewOnly) return json({ accepted: true, preview: true });
+      try {
+        const result = await client.subscribeNewsletter({ email, consent: true, locale: context.locale });
+        if (!result.response.ok) {
+          const details = await result.response.json().catch(() => ({}));
+          return json({ error: details.detail || "Subscription failed" }, result.response.status >= 400 && result.response.status < 500 ? result.response.status : 502);
+        }
+        return json({ accepted: true });
+      } catch (error) {
+        console.error("Newsletter subscription failed", error);
+        return json({ error: "Newsletter signup is temporarily unavailable" }, 502);
+      }
+    }
     if (["/checkout/start", "/cart/quote"].includes(pathname)) {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
       const body = await boundedJson(request);

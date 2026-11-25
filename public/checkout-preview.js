@@ -28,7 +28,7 @@ try {
   }
   document.querySelector('[data-subtotal]').textContent=money(quote.subtotal);
   document.querySelector('[data-discount-row]').hidden=!quote.discount;
-  document.querySelector('[data-discount-name]').textContent=t('3 for 2 · automatically applied','3 for 2 · automatisk rabatt');
+  document.querySelector('[data-discount-name]').textContent=t('Discount','Rabatt');
   document.querySelector('[data-discount-amount]').textContent=money(-quote.discount);
   document.querySelector('[data-remove-discount]').hidden=true;
   document.querySelector('[data-shipping-price]').textContent=t('Confirmed at ordering','Bekreftes ved bestilling');
