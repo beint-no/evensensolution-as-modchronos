@@ -1,97 +1,56 @@
-# Evensensolution AS / ModChronos
+# ModChronos storefront (`beint-no/evensensolution-as-modchronos`)
 
-Private client storefront, repository `beint-no/evensensolution-as-modchronos`.
-ReAI tenant: 2254 (`evensensolution-as`). Site: `9bd71d09-ac8b-4b87-b22a-7719893327d5`.
-The operator checkout lives under `~/r/customer-sites/sites/evensensolution-as-modchronos`;
-read the hub's shared AGENTS.md before working in a dedicated worktree.
+Public Cloudflare Worker storefront for **ModChronos** (`https://modchronos.com`), operated by Evensensolution AS.
+ReAI Site ID: `9bd71d09-ac8b-4b87-b22a-7719893327d5`.
 
-## Ownership and launch status
+## What lives where
 
-This is a Site API storefront: catalog, prices, variants, availability and checkout
-belong in ReAI. Design, assets and editorial content belong in this repository.
-The Worker uses REAI_API_BASE_URL and a server-side REAI_SITE_CREDENTIAL; never
-expose the credential in browser code or commit real credentials.
+- **ReAI (`https://app.reai.no`, MCP: `https://app.reai.no/mcp`)** owns products, variants, prices, stock, collections, discounts (`3FOR2`), shipping rules, orders, and payments (Adyen: Vipps, Visa, Mastercard, American Express, Klarna, Apple Pay, Google Pay).
+- **This repository** owns the website layout, styling (`public/styles.css`, `public/checkout.css`), frontend scripts (`public/store.js`, `public/checkout.js`, `public/cart-rules.js`), server rendering & edge caching (`src/worker.js`), UI copy (`src/ui-copy.js`), and editorial/policy pages (`src/about-content.js`, `src/source-pages.js`, `src/english-pages.js`, `src/brand-content.js`, `src/store-content.js`).
+- **Never commit secrets or credentials.** `REAI_SITE_CREDENTIAL` lives server-side in Cloudflare and must never appear in repository files or browser JavaScript.
 
-The storefront at https://modchronos.com uses ReAI for checkout and payment.
-Norwegian is the default. English is at /en and uses the same NOK market, cart,
-pricing and shipping rules. Original source snapshots and design decisions are
-documented in DESIGN.md.
+## Brand, copy, and trademark rules
 
-Keep the existing managed Worker `reai-store-9bd71d09ac8b4b87b22a7719893327d5` and its credentials intact.
-The public review URL is https://modchronos.respiro.workers.dev. Its small `modchronos`
-Worker forwards requests through a same-account service binding to the managed Worker,
-so it holds no duplicate credential or storefront. The old review URL redirects to
-the short URL while preserving paths and queries. Both configs deploy locally.
-The GitHub rename changes source organization only.
-This customized repository is the source of truth; starter updates must be
-reviewed and must never overwrite the client's implementation.
+- **Strict trademark rule:** Never include Seiko, Rolex, or any other third-party watch brand names, logos, or model names in copy, alt text, metadata, or assets. Refer to movements generically as "japanske urverk" / "Japanese movements".
+- **Keep backend branding subtle:** Do not mention ReAI in customer-facing cart, product, or checkout text. Keep only the `"Drevet av ReAI"` / `"Powered by ReAI"` link to `https://reai.no` in the footer.
+- **Languages:** Norwegian (`nb-NO`) is the default at `/`. English (`en`) is served at `/en` with the same NOK market, cart, pricing, and shipping rules. Keep both languages updated when editing UI copy or policy pages.
 
-## Editing and publishing
+## Workflow: PR previews and automatic deploy
 
-Keep the primary checkout on main. Use a dedicated worktree under ~/.r-worktrees,
-open a PR, and squash merge. Run `npm ci`, `npm run check`, and
-`npx wrangler deploy --dry-run`; inspect relevant desktop/mobile views for design changes.
-Avoid creating production orders or payments for verification.
+This repository is public and uses GitHub Actions with OIDC (no secrets stored in GitHub):
 
-Production and preview publishing are local-first. Actions workflows are manual-only
-while the private Actions budget is unavailable. `npm run deploy` checks and deploys
-both the storefront and the short-address alias. `npm run deploy:local` does the same.
-The runtime uses https://app.reai.no. The Worker allows checkout writes only on
-https://modchronos.com. `CHECKOUT_ENABLED=false` forces review mode. Preview hosts
-permit read-only quotes and a checkout form preview, block checkout API writes
-and disallow indexing.
+1. Create a branch from `main` and make your changes.
+2. Run `npm ci` (once) and `npm run check` locally before pushing.
+3. Open a Pull Request on GitHub (`beint-no/evensensolution-as-modchronos`).
+4. **Automatic PR preview:** Opening or pushing to a PR automatically builds, runs `npm run check`, and publishes an isolated, read-only preview URL as a comment on the PR. Previews are removed automatically when the PR closes.
+5. **Automatic production deploy:** Merging (squash merge) the PR into `main` runs `npm run check`, builds the Worker, and deploys live to `https://modchronos.com` automatically.
 
-## Manual GitHub Actions
+Keep the existing managed Worker name `reai-store-9bd71d09ac8b4b87b22a7719893327d5` and `wrangler.jsonc` bindings intact.
 
-Checks, deployment and PR previews run only when explicitly dispatched. Pushes,
-pull requests and merges do not start workflows. Use the repository's local check,
-deployment and preview commands for normal work. A manual PR preview must be
-dispatched again after changes, and after closing a PR to remove it. Preview
-credentials stay in the trusted controller; previews remain read-only and noindex.
+## Performance and caching
 
-## Direct Cloudflare commands
+`src/worker.js` uses Cloudflare's Cache API (`caches.default`) with `ETag` / `If-None-Match` conditional revalidation and stale-while-revalidate (`ctx.waitUntil(...catch(...))`) for site metadata, storefront catalog, and availability batches. Preserve edge caching and security headers (`Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `X-Robots-Tag: noindex, nofollow` on preview hosts).
 
-These commands run from this repository and do not use GitHub Actions. Install
-with npm ci first. Authenticate using npm exec --yes --package=wrangler@4.165.0
--- wrangler login, or your CLOUDFLARE_API_TOKEN. Select the account with
-CLOUDFLARE_ACCOUNT_ID. Existing Worker secrets and domain configuration are retained.
+## Promotions and merchant checkout
+
+- The ReAI `watch-offer` collection defines eligible watches for the automatic `3FOR2` offer (cheapest eligible watch free for every group of three).
+- `public/cart-rules.js` automatically attaches one complimentary `skinnetui-med-verktoy` (SKU `47645632135362`, price `0`) per eligible watch, including free watches.
+- `/checkout` and `/en/checkout` collect contact, address, and delivery details on `modchronos.com` before handing off to secure payment. Never enable live checkout writes on preview or `*.workers.dev` hosts (`CHECKOUT_ENABLED=false` forces read-only preview mode).
+- Avoid creating real production orders or payments when testing.
+
+## Local commands
+
+```sh
+npm ci
+npm run check
+npx wrangler deploy --dry-run
+```
+
+For operators with Cloudflare Wrangler access, local deployment and previews are also available:
 
 ```sh
 npm run deploy:local -- --dry-run
 npm run deploy:local
-npm run preview:deploy -- design
-npm run preview:remove -- design
+npm run preview:deploy -- my-change
+npm run preview:remove -- my-change
 ```
-
-Deployment and preview creation run the relevant existing checks. --dry-run builds
-without publishing. Multi-site repositories require a site name; available names
-are in tools/worker-sites.json. Previews use a separate local- namespace, block
-writes and carry noindex. Removing one leaves manually dispatched PR previews intact.
-
-Catalog previews additionally need a PREVIEW Site credential with only site:read,
-commerce:catalog:read and commerce:availability:read. Set
-REAI_PREVIEW_CREDENTIAL_FILE to a token file outside Git, or provide
-REAI_PREVIEW_CREDENTIAL in your local environment. Never use the live Site token
-for a preview or commit a credential. Obtain the read-only credential through
-ReAI Site credential management.
-
-## Promotions and merchant checkout
-
-The ReAI `watch-offer` collection owns ready-to-buy watch eligibility. The automatic
-3FOR2 quantity offer is managed in ReAI: cheapest eligible units are free, repeated
-for each full group of three. Zero-price cases and accessories never qualify. The
-Worker adds one `skinnetui-med-verktoy` per eligible watch, including free watches,
-then requests an authoritative read-only cart quote. Recompute after every cart edit;
-do not implement a separate browser pricing rule. Gift-inclusive carts allow up to
-99 watches, matching the Site API line limit.
-
-`/checkout` and `/en/checkout` keep contact, address and delivery in the Worker,
-following the New Movements checkout/client implementation. Live sessions, revision
-checks, discounts, shipping discovery and unpayable payment preparation remain ReAI
-owned. Only secure summary/payment moves to ReAI. Private checkout pages and proxies
-are no-store, noindex and no-referrer. Confirmation verifies completion before
-subtracting purchased quantities once.
-
-The public-source ready-to-buy catalog is imported from Shopify and published in
-ReAI. Custom-builder products remain outside this preview until a supported builder
-exists; do not imply that the original third-party customizer has been migrated.
