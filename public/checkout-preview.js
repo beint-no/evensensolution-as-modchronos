@@ -1,4 +1,5 @@
 import { withWatchCase } from '/cart-rules.js';
+const shopPath = (path) => `${document.body.dataset.pathPrefix || ''}${path}`;
 const state = JSON.parse(document.body.dataset.checkout);
 const no = /^(nb|nn|no)/i.test(state.locale);
 const t = (en, nb) => no ? nb : en;
@@ -9,11 +10,11 @@ const button = document.querySelector('[data-continue]');
 const showError = message => { error.classList.remove('co-notice'); error.textContent=message; error.hidden=false; };
 button.disabled=true;
 try {
-  const catalog = await fetch('/catalog.json').then(r=>{if(!r.ok)throw Error();return r.json()});
+  const catalog = await fetch(shopPath('/catalog.json')).then(r=>{if(!r.ok)throw Error();return r.json()});
   const stored=JSON.parse(localStorage.getItem('reai-storefront-cart-v1')||'[]');
   const lines=withWatchCase(stored,catalog);
-  if(!lines.length)location.replace('/cart');
-  const response=await fetch('/cart/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines})});
+  if(!lines.length)location.replace(shopPath('/cart'));
+  const response=await fetch(shopPath('/cart/quote'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines})});
   const quote=await response.json();if(!response.ok)throw Error(quote.detail||quote.error||t('The cart could not be priced.','Handlekurven kunne ikke beregnes.'));
   const products=document.querySelector('.co-products');products.replaceChildren();
   for(const line of quote.lines){

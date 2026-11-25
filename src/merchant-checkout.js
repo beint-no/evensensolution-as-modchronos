@@ -1,22 +1,21 @@
 import { renderCheckoutPage } from './checkout.js';
-export async function merchantCheckout(request, env, client, site, readBody) {
-  if(!env.MERCHANT_CHECKOUT_PATH)return null;
+import { language, ui } from './ui-copy.js';
+export async function merchantCheckout(request, env, client, market, readBody, { pathname, pathPrefix, reviewOnly, locale }) {
   const url = new URL(request.url);
-  const api=url.pathname.match(/^\/reai\/checkout\/([a-f0-9]{32})(?:\/(delivery-options|prepare-payment|change-country|address-suggestions))?$/);
-  const page=url.pathname==='/checkout'||url.pathname==='/checkout/complete';
+  const api=pathname.match(/^\/reai\/checkout\/([a-f0-9]{32})(?:\/(delivery-options|prepare-payment|change-country|address-suggestions))?$/);
+  const page=pathname==='/checkout'||pathname==='/checkout/complete';
   if(!api&&!page)return null;
   const headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer','Permissions-Policy':'camera=(), microphone=(), geolocation=()','X-Robots-Tag':'noindex, nofollow','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' https: data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"};
   const reply=(body,status=200)=>Response.json(body,{status,headers});
-  if(env.REAI_REVIEW_ONLY==='true'){
-    if(api)return reply({error:'Bestilling og betaling er ikke aktivert i forhåndsvisningen.'},403);
+  if(reviewOnly){
+    if(api)return reply({error:ui(locale).previewCheckout},403);
     if(!['GET','HEAD'].includes(request.method))return reply({error:'Method not allowed'},405);
-    const market=site.markets.find(m=>m.default)||site.markets[0];
-    const state={reviewOnly:true,id:null,locale:market.defaultLocale,currency:market.currency,lines:[],destinations:(market.countries.length?market.countries:['NO']).map(countryCode=>({countryCode})),customer:{countryCode:market.countries[0]||'NO'},editable:true,phase:'details',subtotal:0,total:0,vat:0,discountGross:0,discountCode:null,shippingGross:null};
-    return new Response(request.method==='HEAD'?null:renderCheckoutPage(state),{headers:{...headers,'Content-Type':'text/html; charset=utf-8'}});
+    const state={reviewOnly:true,id:null,locale,currency:market.currency,lines:[],destinations:(market.countries.length?market.countries:['NO']).map(countryCode=>({countryCode})),customer:{countryCode:market.countries[0]||'NO'},editable:true,phase:'details',subtotal:0,total:0,vat:0,discountGross:0,discountCode:null,shippingGross:null};
+    return new Response(request.method==='HEAD'?null:renderCheckoutPage(state,{pathPrefix}),{headers:{...headers,'Content-Type':'text/html; charset=utf-8'}});
   }
   const id=api?.[1]||url.searchParams.get('checkout');
-  if(!id||!/^[a-f0-9]{32}$/.test(id))return page?Response.redirect(new URL('/cart',url.origin),303):reply({error:'Checkout not found'},404);
-  if(request.headers.get('Sec-Fetch-Site')==='cross-site')return reply({error:'Invalid origin'},403);
+  if(!id||!/^[a-f0-9]{32}$/.test(id))return page?Response.redirect(new URL(`${pathPrefix}/cart`,url.origin),303):reply({error:'Checkout not found'},404);
+  if(api && request.headers.get('Sec-Fetch-Site')==='cross-site')return reply({error:'Invalid origin'},403);
   let result;
   if(['GET','HEAD'].includes(request.method)&&!api?.[2])result=await client.checkoutDetails(id);
   else if(api?.[2]==='address-suggestions'&&request.method==='GET'){
@@ -35,6 +34,12 @@ export async function merchantCheckout(request, env, client, site, readBody) {
   } else return reply({error:'Method not allowed'},405);
   if(!result.response.ok)return new Response(request.method==='HEAD'?null:result.response.body,{status:result.response.status,headers:{...headers,'Content-Type':'application/json'}});
   const details=await result.response.json();
+  if(language(locale)==='en'){
+    for(const option of [...(details.options || []), ...(details.shippingMethods || [])]){
+      if(option.name==='Gratis frakt')option.name='Free shipping';
+    }
+    if(details.shippingName==='Gratis frakt')details.shippingName='Free shipping';
+  }
   if(!page)return reply(details);
-  return new Response(request.method==='HEAD'?null:renderCheckoutPage(details,{completed:url.pathname==='/checkout/complete'}),{headers:{...headers,'Content-Type':'text/html; charset=utf-8'}});
+  return new Response(request.method==='HEAD'?null:renderCheckoutPage(details,{completed:pathname==='/checkout/complete',pathPrefix}),{headers:{...headers,'Content-Type':'text/html; charset=utf-8'}});
 }

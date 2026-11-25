@@ -1,5 +1,7 @@
 import { withWatchCase, watchCase } from "/cart-rules.js";
 
+const shopPath = (path) => `${document.body.dataset.pathPrefix || ""}${path}`;
+
 const CART_KEY = "reai-storefront-cart-v1";
 const CHECKOUT_KEY = "reai-storefront-checkout-started";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -37,7 +39,7 @@ let quoteRequest = 0;
 const drawer = document.querySelector("[data-cart-drawer]");
 
 function loadCatalog() {
-  return catalogRequest ||= fetch("/catalog.json").then((response) => {
+  return catalogRequest ||= fetch(shopPath("/catalog.json")).then((response) => {
     if (!response.ok) throw new Error(TEXT.cartUnavailable);
     return response.json();
   }).then((value) => { catalog = value; return value; }).catch((error) => { catalogRequest = null; throw error; });
@@ -71,7 +73,7 @@ document.querySelectorAll("[data-add-to-cart]").forEach((addForm) => {
       saveCart(cart);
       message.textContent = TEXT.added;
       const cartLink = document.createElement("a");
-      cartLink.href = "/cart";
+      cartLink.href = shopPath("/cart");
       cartLink.textContent = TEXT.viewCart;
       message.append(" ", cartLink);
       renderAll();
@@ -93,7 +95,7 @@ function renderAll() {
   quoteError=null;
   cartRoots.forEach(renderCart);
   if(!lines.length){cartQuote=null;return;}
-  fetch('/cart/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines})})
+  fetch(shopPath('/cart/quote'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines})})
     .then(async response=>{const result=await response.json();if(!response.ok){stockIssues=new Map((result.stockIssues||[]).map(issue=>[issue.variantId,issue]));throw Error(result.detail||result.error||TEXT.cartUnavailable)}return result;})
     .then(value=>{if(sequence!==quoteRequest)return;stockIssues.clear();cartQuote={...value,key};cartRoots.forEach(renderCart);})
     .catch(error=>{if(sequence!==quoteRequest)return;quoteError=error.message;cartRoots.forEach(renderCart);});
@@ -123,7 +125,7 @@ function renderCart(cartRoot) {
     const imageLink = document.createElement("a");
     imageLink.className = "cart-product-image";
     const productImage = found?.product.images?.[0];
-    if (found) imageLink.href = `/products/${encodeURIComponent(found.product.handle)}`;
+    if (found) imageLink.href = shopPath(`/products/${encodeURIComponent(found.product.handle)}`);
     if (productImage?.url) {
       const image = document.createElement("img");
       image.src = productImage.renditions?.find((entry) => entry.width >= 160)?.url || productImage.url;
@@ -133,7 +135,7 @@ function renderCart(cartRoot) {
     }
     const title = document.createElement(found ? "a" : "span");
     title.className = "cart-product-title";
-    if (found) title.href = `/products/${encodeURIComponent(found.product.handle)}`;
+    if (found) title.href = shopPath(`/products/${encodeURIComponent(found.product.handle)}`);
     title.textContent = found?.product.title || TEXT.unavailableProduct;
     if (found?.variant.options?.length) {
       const options = document.createElement("small");
@@ -221,7 +223,7 @@ if (checkoutButton) {
     checkoutButton.textContent = TEXT.openingCheckout;
     checkoutError.hidden = true;
     try {
-      const response = await fetch("/checkout/start", {
+      const response = await fetch(shopPath("/checkout/start"), {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({ lines: readCart() }),
