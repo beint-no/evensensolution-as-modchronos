@@ -72,12 +72,12 @@ export const sourcePages = {
 <h2>Your Rights (EU/EEA &amp; Norway)</h2>
 <p>Depending on where you live, including under GDPR in Norway and the EU/EEA, you have the right to request access to, correction of, deletion of, or portability of your personal information, and to object to or restrict certain processing. You also have the right to lodge a complaint with your local data protection authority (in Norway: Datatilsynet; in the EEA: <a href="https://edpb.europa.eu/about-edpb/about-edpb/members">EDPB members</a>).</p>
 <h2>Contact</h2>
-<p>For questions about this Privacy Policy or to exercise your rights, contact us at <a href="mailto:support@modchronos.com">support@modchronos.com</a>, call <a href="tel:+13238008723">+1 (323) 800-8723</a>, or write to Evensensolution AS / ModChronos, Turulia 51, 1592 Våler, Norway. Evensensolution AS is the data controller for your personal information.</p>`,
+<p>For questions about this Privacy Policy or to exercise your rights, contact us at <a href="mailto:support@modchronos.com">support@modchronos.com</a>, call <a href="tel:+13238008723">+1 (323) 800-8723</a>, or write to Evensensolution AS / ModChronos, Bjerget 7J, 1530 Moss, Norway. Evensensolution AS is the data controller for your personal information.</p>`,
   },
   "/policies/terms": {
     title: "Kjøpsvilkår",
     html: `<p><em>Sist oppdatert: november 2026</em></p>
-<p>Disse vilkårene («Vilkårene») regulerer din bruk av modchronos.com og ethvert kjøp du gjør hos ModChronos, drevet av EVENSENSOLUTION AS (org.nr. 936 564 224, MVA NO936564224MVA), Turulia 51, 1592 Våler, Norge («ModChronos», «vi», «oss»). Ved å legge inn en bestilling godtar du disse Vilkårene.</p>
+<p>Disse vilkårene («Vilkårene») regulerer din bruk av modchronos.com og ethvert kjøp du gjør hos ModChronos, drevet av EVENSENSOLUTION AS (org.nr. 936 564 224, MVA NO936564224MVA), Bjerget 7J, 1530 Moss, Norge («ModChronos», «vi», «oss»). Ved å legge inn en bestilling godtar du disse Vilkårene.</p>
 <h2>1. Produktene våre</h2>
 <p>Vi selger håndmonterte, skreddersydde armbåndsur bygget med pålitelige japanske urverk og nøye utvalgte komponenter. Hver klokke monteres på bestilling. Mindre variasjoner mellom produktbilde og ferdig klokke kan forekomme som følge av håndarbeid.</p>
 <h2>2. Merkevareuavhengighet</h2>
@@ -101,7 +101,7 @@ export const sourcePages = {
 <h2>11. Lovvalg</h2>
 <p>Disse Vilkårene er underlagt norsk lov, uten å begrense de ufravikelige forbrukerrettighetene du har i ditt bostedsland innenfor EU/EØS.</p>
 <h2>12. Kontakt</h2>
-<p>EVENSENSOLUTION AS – <a href="mailto:support@modchronos.com">support@modchronos.com</a> – Turulia 51, 1592 Våler, Norge.</p>`,
+<p>EVENSENSOLUTION AS – <a href="mailto:support@modchronos.com">support@modchronos.com</a> – Bjerget 7J, 1530 Moss, Norge.</p>`,
   },
   "/pages/contact": {
     title: "Kontakt oss",
@@ -109,7 +109,7 @@ export const sourcePages = {
 <p><strong>Selskap:</strong> Evensensolution AS (ModChronos)</p>
 <p><strong>E-post:</strong> <a href="mailto:support@modchronos.com">support@modchronos.com</a></p>
 <p><strong>Telefon:</strong> <a href="tel:+13238008723">+1 (323) 800-8723</a></p>
-<p><strong>Forretningsadresse:</strong> Turulia 51, 1592 Våler, Norge</p>
+<p><strong>Forretningsadresse:</strong> Bjerget 7J, 1530 Moss, Norge</p>
 <p><strong>Organisasjonsnummer:</strong> 936 564 224</p>
 <p><strong>MVA-nummer:</strong> NO936564224MVA</p>`,
   },
