@@ -46,7 +46,7 @@ export const englishPages = {
   "/policies/terms": {
     title: "Terms of sale",
     html: `<p><em>Last updated: November 2026</em></p>
-<p>These terms govern your use of modchronos.com and purchases from ModChronos, operated by EVENSENSOLUTION AS, registration number 936 564 224, VAT number NO936564224MVA, Turulia 51, 1592 Våler, Norway. By placing an order, you accept these terms.</p>
+<p>These terms govern your use of modchronos.com and purchases from ModChronos, operated by EVENSENSOLUTION AS, registration number 936 564 224, VAT number NO936564224MVA, Bjerget 7J, 1530 Moss, Norway. By placing an order, you accept these terms.</p>
 <h2>1. Our products</h2>
 <p>We sell customised wristwatches assembled by hand using reliable Japanese movements and carefully selected components. Each watch is made to order. Because our products are handmade, the finished watch may differ slightly from the product photograph.</p>
 <h2>2. Brand independence</h2>
@@ -70,7 +70,7 @@ export const englishPages = {
 <h2>11. Governing law</h2>
 <p>Norwegian law governs these terms without limiting the mandatory consumer rights you have in your country of residence within the EU or EEA.</p>
 <h2>12. Contact</h2>
-<p>EVENSENSOLUTION AS, <a href="mailto:support@modchronos.com">support@modchronos.com</a>, Turulia 51, 1592 Våler, Norway.</p>`,
+<p>EVENSENSOLUTION AS, <a href="mailto:support@modchronos.com">support@modchronos.com</a>, Bjerget 7J, 1530 Moss, Norway.</p>`,
   },
   "/pages/contact": {
     title: "Contact",
@@ -78,7 +78,7 @@ export const englishPages = {
 <p><strong>Trading name:</strong> Evensensolution AS (ModChronos)</p>
 <p><strong>Email:</strong> <a href="mailto:support@modchronos.com">support@modchronos.com</a></p>
 <p><strong>Phone:</strong> <a href="tel:+13238008723">+1 (323) 800-8723</a></p>
-<p><strong>Business address:</strong> Turulia 51, 1592 Våler, Norway</p>
+<p><strong>Business address:</strong> Bjerget 7J, 1530 Moss, Norway</p>
 <p><strong>Business registration number:</strong> 936 564 224</p>
 <p><strong>VAT number:</strong> NO936564224MVA</p>`,
   },

@@ -3,7 +3,7 @@ export const storeContent = {
   contactEmail: "support@modchronos.com",
   legalName: "Evensensolution AS",
   organizationNumber: "Org.nr. 936 564 224",
-  address: "Turulia 51, 1592 Våler, Norge",
+  address: "Bjerget 7J, 1530 Moss, Norge",
   nb: {
     tagline: "Håndmonterte klokker med japanske urverk.",
     heroEyebrow: "Japansk urverk · Håndmontert",
